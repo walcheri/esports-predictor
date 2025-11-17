@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { MatchCard } from "@/components/MatchCard";
 import {
@@ -9,58 +9,42 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-
-// Mock data for demonstration
-const mockMatches = [
-  {
-    id: "1",
-    team1: { name: "Natus Vincere", logo: "" },
-    team2: { name: "FaZe Clan", logo: "" },
-    tournament: "IEM Katowice 2025",
-    startTime: "Сегодня, 18:00",
-    status: "upcoming" as const,
-    game: "CS2",
-  },
-  {
-    id: "2",
-    team1: { name: "Team Spirit", logo: "" },
-    team2: { name: "OG", logo: "" },
-    tournament: "The International 2025",
-    startTime: "Сегодня, 20:30",
-    status: "live" as const,
-    game: "Dota 2",
-  },
-  {
-    id: "3",
-    team1: { name: "T1", logo: "" },
-    team2: { name: "Gen.G", logo: "" },
-    tournament: "LCK Spring 2025",
-    startTime: "Завтра, 14:00",
-    status: "upcoming" as const,
-    game: "LoL",
-  },
-  {
-    id: "4",
-    team1: { name: "Sentinels", logo: "" },
-    team2: { name: "Cloud9", logo: "" },
-    tournament: "VCT Americas",
-    startTime: "Сегодня, 22:00",
-    status: "upcoming" as const,
-    game: "Valorant",
-  },
-];
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export default function Matches() {
   const [game, setGame] = useState<string>("all");
   const [date, setDate] = useState<string>("today");
   const [status, setStatus] = useState<string>("all");
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [matches, setMatches] = useState<any[]>([]);
 
-  const filteredMatches = mockMatches.filter((match) => {
-    if (game !== "all" && match.game !== game) return false;
-    if (status !== "all" && match.status !== status) return false;
-    return true;
-  });
+  useEffect(() => {
+    fetchMatches();
+  }, [game, date, status]);
+
+  const fetchMatches = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-matches', {
+        body: { game, date, status },
+      });
+
+      if (error) {
+        console.error('Error fetching matches:', error);
+        toast.error('Не удалось загрузить матчи');
+        setMatches([]);
+      } else {
+        setMatches(data?.matches || []);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Ошибка при загрузке матчей');
+      setMatches([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -128,19 +112,19 @@ export default function Matches() {
         <div className="container mx-auto">
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {[...Array(8)].map((_, i) => (
-                <Skeleton key={i} className="h-[350px]" />
+              {matches.map((match) => (
+                <MatchCard key={match.id} {...match} />
               ))}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredMatches.map((match) => (
+              {matches.map((match) => (
                 <MatchCard key={match.id} {...match} />
               ))}
             </div>
           )}
 
-          {!isLoading && filteredMatches.length === 0 && (
+          {!isLoading && matches.length === 0 && (
             <div className="text-center py-16">
               <p className="text-xl text-muted-foreground">
                 Нет матчей по выбранным фильтрам
