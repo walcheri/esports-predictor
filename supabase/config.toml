@@ -1,1 +1,10 @@
 project_id = "askfmubxfxwyzjnffsqp"
+
+[functions.fetch-matches]
+verify_jwt = false
+
+[functions.fetch-match-details]
+verify_jwt = false
+
+[functions.generate-prediction]
+verify_jwt = false
