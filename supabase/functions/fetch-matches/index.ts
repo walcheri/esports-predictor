@@ -23,33 +23,50 @@ serve(async (req) => {
       );
     }
 
-    // Map game names to PandaScore videogame IDs
-    const gameMap: Record<string, number> = {
-      'CS2': 3, // CS:GO/CS2
-      'Dota 2': 4,
-      'LoL': 1,
-      'Valorant': 23,
+    // Map game names to PandaScore videogame slugs
+    const gameSlugMap: Record<string, string> = {
+      'CS2': 'csgo',
+      'Dota 2': 'dota2',
+      'LoL': 'league-of-legends',
+      'Valorant': 'valorant',
     };
 
-    const videogameId = game && game !== 'all' ? gameMap[game] : null;
-    
-    // Build PandaScore API URL
-    let url = 'https://api.pandascore.co/matches';
+    // Build PandaScore API URL based on game and status
+    let url: string;
     const params = new URLSearchParams();
     
-    if (videogameId) {
-      params.append('filter[videogame_id]', videogameId.toString());
+    if (game && game !== 'all') {
+      const slug = gameSlugMap[game];
+      if (!slug) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid game selection' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Use game-specific endpoints
+      if (status === 'live') {
+        url = `https://api.pandascore.co/${slug}/matches/running`;
+      } else if (status === 'upcoming') {
+        url = `https://api.pandascore.co/${slug}/matches/upcoming`;
+      } else {
+        url = `https://api.pandascore.co/${slug}/matches`;
+        params.append('sort', 'scheduled_at');
+      }
+    } else {
+      // All games - use general endpoint
+      url = 'https://api.pandascore.co/matches';
+      
+      if (status === 'live') {
+        params.append('filter[status]', 'running');
+      } else if (status === 'upcoming') {
+        params.append('filter[status]', 'not_started');
+      }
+      
+      params.append('sort', 'scheduled_at');
     }
     
-    // Status filter
-    if (status === 'live') {
-      params.append('filter[status]', 'running');
-    } else if (status === 'upcoming') {
-      params.append('filter[status]', 'not_started');
-    }
-    
-    // Sort by scheduled date
-    params.append('sort', 'scheduled_at');
+    // Request more matches to show 20+
     params.append('page[size]', '50');
     
     if (params.toString()) {
