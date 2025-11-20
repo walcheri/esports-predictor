@@ -31,6 +31,25 @@ serve(async (req) => {
       'Valorant': 'valorant',
     };
 
+    // Calculate time ranges
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const todayEnd = new Date(now);
+    todayEnd.setUTCHours(23, 59, 59, 999);
+    
+    const tomorrowStart = new Date(todayEnd);
+    tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
+    tomorrowStart.setUTCHours(0, 0, 0, 0);
+    const tomorrowEnd = new Date(tomorrowStart);
+    tomorrowEnd.setUTCHours(23, 59, 59, 999);
+    
+    const next48Hours = new Date(now);
+    next48Hours.setUTCHours(next48Hours.getUTCHours() + 48);
+    
+    const weekEnd = new Date(now);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+
     // Build PandaScore API URL based on game and status
     let url: string;
     const params = new URLSearchParams();
@@ -51,7 +70,6 @@ serve(async (req) => {
         url = `https://api.pandascore.co/${slug}/matches/upcoming`;
       } else {
         url = `https://api.pandascore.co/${slug}/matches`;
-        params.append('sort', 'scheduled_at');
       }
     } else {
       // All games - use general endpoint
@@ -62,9 +80,24 @@ serve(async (req) => {
       } else if (status === 'upcoming') {
         params.append('filter[status]', 'not_started');
       }
-      
-      params.append('sort', 'scheduled_at');
     }
+    
+    // Add time range filters based on date selection
+    if (status !== 'live') {
+      if (date === 'today') {
+        params.append('range[begin_at]', `${todayStart.toISOString()},${todayEnd.toISOString()}`);
+      } else if (date === 'tomorrow') {
+        params.append('range[begin_at]', `${tomorrowStart.toISOString()},${tomorrowEnd.toISOString()}`);
+      } else if (date === 'week') {
+        params.append('range[begin_at]', `${now.toISOString()},${weekEnd.toISOString()}`);
+      } else {
+        // Default: next 48 hours for upcoming/all
+        params.append('range[begin_at]', `${now.toISOString()},${next48Hours.toISOString()}`);
+      }
+    }
+    
+    // Sort by begin_at ascending
+    params.append('sort', 'begin_at');
     
     // Request more matches to show 20+
     params.append('page[size]', '50');
@@ -94,27 +127,39 @@ serve(async (req) => {
     const data = await response.json();
     console.log(`Fetched ${data.length} matches from PandaScore`);
 
-    // Transform data to our format
-    const matches = data.map((match: any) => ({
-      id: match.id.toString(),
-      team1: {
-        name: match.opponents?.[0]?.opponent?.name || 'Team 1',
-        logo: match.opponents?.[0]?.opponent?.image_url || '',
-      },
-      team2: {
-        name: match.opponents?.[1]?.opponent?.name || 'Team 2',
-        logo: match.opponents?.[1]?.opponent?.image_url || '',
-      },
-      tournament: match.league?.name || match.serie?.full_name || 'Unknown Tournament',
-      startTime: new Date(match.scheduled_at || match.begin_at).toLocaleString('ru-RU', {
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      status: match.status === 'running' ? 'live' : 'upcoming',
-      game: match.videogame?.name || 'Unknown',
-    }));
+    // Transform data to our format and filter out finished matches
+    const matches = data
+      .filter((match: any) => {
+        const matchStatus = match.status;
+        // Only include not_started and running matches
+        return matchStatus === 'not_started' || matchStatus === 'running';
+      })
+      .map((match: any) => {
+        // Parse begin_at and convert to Moscow time (UTC+3)
+        const beginAt = new Date(match.begin_at || match.scheduled_at);
+        const moscowTime = new Date(beginAt.getTime() + (3 * 60 * 60 * 1000)); // Add 3 hours for UTC+3
+        
+        const day = moscowTime.getUTCDate().toString().padStart(2, '0');
+        const month = (moscowTime.getUTCMonth() + 1).toString().padStart(2, '0');
+        const hours = moscowTime.getUTCHours().toString().padStart(2, '0');
+        const minutes = moscowTime.getUTCMinutes().toString().padStart(2, '0');
+        
+        return {
+          id: match.id.toString(),
+          team1: {
+            name: match.opponents?.[0]?.opponent?.name || 'Team 1',
+            logo: match.opponents?.[0]?.opponent?.image_url || '',
+          },
+          team2: {
+            name: match.opponents?.[1]?.opponent?.name || 'Team 2',
+            logo: match.opponents?.[1]?.opponent?.image_url || '',
+          },
+          tournament: match.league?.name || match.serie?.full_name || 'Unknown Tournament',
+          startTime: `${day}.${month} в ${hours}:${minutes}`,
+          status: match.status === 'running' ? 'live' : 'upcoming',
+          game: match.videogame?.name || 'Unknown',
+        };
+      });
 
     return new Response(
       JSON.stringify({ matches }),

@@ -14,8 +14,8 @@ import { toast } from "sonner";
 
 export default function Matches() {
   const [game, setGame] = useState<string>("all");
-  const [date, setDate] = useState<string>("today");
-  const [status, setStatus] = useState<string>("all");
+  const [date, setDate] = useState<string>("48h");
+  const [status, setStatus] = useState<string>("upcoming");
   const [isLoading, setIsLoading] = useState(true);
   const [matches, setMatches] = useState<any[]>([]);
 
@@ -87,6 +87,7 @@ export default function Matches() {
                 <SelectValue placeholder="Дата" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="48h">Ближайшие 48 часов</SelectItem>
                 <SelectItem value="today">Сегодня</SelectItem>
                 <SelectItem value="tomorrow">Завтра</SelectItem>
                 <SelectItem value="week">На этой неделе</SelectItem>
