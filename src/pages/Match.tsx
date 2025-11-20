@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowLeft, Loader2, TrendingUp } from "lucide-react";
-import { Cell, Pie, PieChart, ResponsiveContainer, Legend } from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Legend, Bar, BarChart, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -174,7 +174,108 @@ export default function Match() {
             <p className="text-center mt-6 text-muted-foreground">{matchData.tournament}</p>
           </Card>
 
-          {/* Head-to-Head - Скрываем пока нет данных */}
+          {/* Team Lineups */}
+          {matchData.team1.players?.length > 0 && matchData.team2.players?.length > 0 && (
+            <div className="grid md:grid-cols-2 gap-8 mb-8">
+              <Card className="p-6">
+                <h3 className="text-lg font-bold mb-4">Состав {matchData.team1.name}</h3>
+                <div className="space-y-3">
+                  {matchData.team1.players.map((player: any, i: number) => (
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                      {player.image && (
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-muted">
+                          <img src={player.image} alt={player.name} className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-medium">{player.name}</p>
+                        <p className="text-xs text-muted-foreground">{player.role}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              <Card className="p-6">
+                <h3 className="text-lg font-bold mb-4">Состав {matchData.team2.name}</h3>
+                <div className="space-y-3">
+                  {matchData.team2.players.map((player: any, i: number) => (
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                      {player.image && (
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-muted">
+                          <img src={player.image} alt={player.name} className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-medium">{player.name}</p>
+                        <p className="text-xs text-muted-foreground">{player.role}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Head-to-Head */}
+          {matchData.headToHead?.matches?.length > 0 && (
+            <Card className="p-6 mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold">Head-to-Head (последние 6 месяцев)</h3>
+                <Badge variant="outline" className="text-lg">
+                  {matchData.headToHead.team1Wins} - {matchData.headToHead.team2Wins}
+                </Badge>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Дата</TableHead>
+                    <TableHead>Победитель</TableHead>
+                    <TableHead>Счёт</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {matchData.headToHead.matches.map((match: any, i: number) => (
+                    <TableRow key={i}>
+                      <TableCell>{match.date}</TableCell>
+                      <TableCell className="font-medium">{match.winner}</TableCell>
+                      <TableCell>{match.score}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          )}
+
+          {/* Map Winrates */}
+          {matchData.mapWinrates && (
+            <Card className="p-6 mb-8">
+              <h3 className="text-lg font-bold mb-4">Winrate на текущей карте (последние 3 месяца)</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={[
+                    { team: matchData.team1.name, winrate: matchData.mapWinrates.team1 },
+                    { team: matchData.team2.name, winrate: matchData.mapWinrates.team2 },
+                  ]}>
+                    <XAxis dataKey="team" />
+                    <YAxis domain={[0, 100]} />
+                    <RechartsTooltip />
+                    <Bar dataKey="winrate" fill="hsl(var(--primary))" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-1">{matchData.team1.name}</p>
+                  <p className="text-2xl font-bold text-primary">{matchData.mapWinrates.team1}%</p>
+                </div>
+                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-1">{matchData.team2.name}</p>
+                  <p className="text-2xl font-bold text-primary">{matchData.mapWinrates.team2}%</p>
+                </div>
+              </div>
+            </Card>
+          )}
           
           {/* Recent Matches */}
           <div className="grid md:grid-cols-2 gap-8 mb-8">
