@@ -61,4 +61,9 @@ All colors MUST be HSL.
   html {
     scroll-behavior: smooth;
   }
+
+  /* Smooth page transitions */
+  main, section {
+    animation: fade-in 0.3s ease-out;
+  }
 }

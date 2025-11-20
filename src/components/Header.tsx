@@ -21,7 +21,7 @@ export const Header = () => {
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-8">
           <Link
-            to="/"
+            to="/matches"
             className="text-foreground hover:text-primary transition-colors font-medium"
           >
             Матчи
@@ -55,7 +55,7 @@ export const Header = () => {
         <div className="md:hidden bg-card border-b border-border">
           <nav className="container mx-auto px-4 py-4 flex flex-col gap-4">
             <Link
-              to="/"
+              to="/matches"
               className="text-foreground hover:text-primary transition-colors font-medium py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
