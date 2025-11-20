@@ -25,12 +25,37 @@ serve(async (req) => {
 
     console.log('Generating AI prediction for match:', matchData.id);
 
-    // Prepare prompt with match statistics
-    const prompt = `Ты эксперт по киберспорту. Проанализируй матч ${matchData.game}: ${matchData.team1.name} vs ${matchData.team2.name}.
+    // Prepare detailed prompt with all statistics
+    const team1Form = matchData.team1Recent.map((m: any) => m.result === 'win' ? 'W' : 'L').join('');
+    const team2Form = matchData.team2Recent.map((m: any) => m.result === 'win' ? 'W' : 'L').join('');
+    
+    const team1Players = matchData.team1.players?.map((p: any) => `${p.name} (${p.role})`).join(', ') || 'Состав неизвестен';
+    const team2Players = matchData.team2.players?.map((p: any) => `${p.name} (${p.role})`).join(', ') || 'Состав неизвестен';
 
-Вот статистика:
-- Турнир: ${matchData.tournament}
-- Дата: ${matchData.startTime}
+    const h2hInfo = matchData.headToHead?.matches?.length > 0 
+      ? `H2H за последние 6 месяцев: ${matchData.team1.name} ${matchData.headToHead.team1Wins} - ${matchData.headToHead.team2Wins} ${matchData.team2.name}`
+      : 'H2H данные отсутствуют';
+
+    const prompt = `Ты — профессиональный аналитик по киберспорту ${matchData.game}.
+
+Матч: ${matchData.team1.name} vs ${matchData.team2.name}
+Турнир: ${matchData.tournament}
+Формат: Bo${matchData.bestOf || 1}
+Дата: ${matchData.startTime}
+
+Составы команд:
+${matchData.team1.name}: ${team1Players}
+${matchData.team2.name}: ${team2Players}
+
+${h2hInfo}
+
+Winrate на текущей карте/игре (за последние 3 месяца):
+${matchData.team1.name}: ${matchData.mapWinrates?.team1 || 0}%
+${matchData.team2.name}: ${matchData.mapWinrates?.team2 || 0}%
+
+Форма команд (последние 5 матчей):
+${matchData.team1.name}: ${team1Form}
+${matchData.team2.name}: ${team2Form}
 
 Последние матчи ${matchData.team1.name}:
 ${matchData.team1Recent.map((m: any) => `${m.date} против ${m.opponent}: ${m.result === 'win' ? 'Победа' : 'Поражение'} (${m.score})`).join('\n')}
@@ -38,12 +63,21 @@ ${matchData.team1Recent.map((m: any) => `${m.date} против ${m.opponent}: $
 Последние матчи ${matchData.team2.name}:
 ${matchData.team2Recent.map((m: any) => `${m.date} против ${m.opponent}: ${m.result === 'win' ? 'Победа' : 'Поражение'} (${m.score})`).join('\n')}
 
-Дай краткий аналитический отчёт (3-4 абзаца на русском языке) и точные проценты победы для каждой команды.
+Дай подробный профессиональный анализ на русском языке (3-4 абзаца):
+- Анализ сильных и слабых сторон каждой команды
+- Ключевые игроки и их влияние на матч
+- Важность карты/мэтчапа для каждой команды
+- Факторы, которые могут повлиять на исход (форма, H2H история, турнирный контекст)
+
+В конце дай точные проценты победы с учётом всей статистики.
+
+ВАЖНО: Если H2H показывает явное преимущество одной команды (например, 8-2) и высокий winrate на карте (70%+), вероятность должна быть >70%. Используй логику и статистику.
+
 Формат ответа должен быть JSON:
 {
   "team1Probability": <число от 0 до 100>,
   "team2Probability": <число от 0 до 100>,
-  "analysis": "<текст аналитического отчёта>"
+  "analysis": "<текст аналитического отчёта, 3-4 абзаца>"
 }`;
 
     // Call Lovable AI
