@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { MatchCard } from "@/components/MatchCard";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -11,13 +13,30 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ArrowLeft } from "lucide-react";
+
+const gameNames: Record<string, string> = {
+  cs2: "Counter-Strike 2",
+  dota2: "Dota 2",
+  lol: "League of Legends",
+  valorant: "Valorant",
+  all: "Все игры",
+};
 
 export default function Matches() {
-  const [game, setGame] = useState<string>("all");
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const gameParam = searchParams.get("game") || "all";
+  
+  const [game, setGame] = useState<string>(gameParam);
   const [date, setDate] = useState<string>("48h");
   const [status, setStatus] = useState<string>("upcoming");
   const [isLoading, setIsLoading] = useState(true);
   const [matches, setMatches] = useState<any[]>([]);
+
+  useEffect(() => {
+    setGame(gameParam);
+  }, [gameParam]);
 
   useEffect(() => {
     fetchMatches();
@@ -50,17 +69,22 @@ export default function Matches() {
     <div className="min-h-screen bg-background">
       <Header />
       
-      {/* Hero Section */}
-      <section className="pt-32 pb-12 px-4">
-        <div className="container mx-auto text-center space-y-4">
-          <h1 className="text-4xl md:text-6xl font-black">
-            Прогнозируй матчи{" "}
-            <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-              с ИИ
-            </span>
+      {/* Header with Back Button */}
+      <section className="pt-32 pb-8 px-4">
+        <div className="container mx-auto">
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/")}
+            className="mb-6 gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Назад к выбору игры
+          </Button>
+          <h1 className="text-3xl md:text-5xl font-black">
+            {gameNames[game] || "Все игры"}
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Анализ статистики команд и ИИ-прогнозирование результатов киберспортивных матчей
+          <p className="text-muted-foreground mt-2">
+            Предстоящие матчи и Live-игры
           </p>
         </div>
       </section>
