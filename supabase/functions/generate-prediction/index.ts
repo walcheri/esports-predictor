@@ -26,18 +26,26 @@ serve(async (req) => {
     console.log('Generating AI prediction for match:', matchData.id);
 
     // Prepare detailed prompt with all statistics
-    const team1Form = matchData.team1Recent.map((m: any) => m.result === 'win' ? 'W' : 'L').join('');
-    const team2Form = matchData.team2Recent.map((m: any) => m.result === 'win' ? 'W' : 'L').join('');
-    
+    const team1Form = matchData.team1Recent.map((m: any) => (m.result === 'win' ? 'W' : 'L')).join('');
+    const team2Form = matchData.team2Recent.map((m: any) => (m.result === 'win' ? 'W' : 'L')).join('');
+
     const team1Players = matchData.team1.players?.map((p: any) => `${p.name} (${p.role})`).join(', ') || 'Состав неизвестен';
     const team2Players = matchData.team2.players?.map((p: any) => `${p.name} (${p.role})`).join(', ') || 'Состав неизвестен';
 
-    const h2hInfo = matchData.headToHead?.matches?.length > 0 
+    const h2hInfo = matchData.headToHead?.matches?.length > 0
       ? `H2H за последние 6 месяцев: ${matchData.team1.name} ${matchData.headToHead.team1Wins} - ${matchData.headToHead.team2Wins} ${matchData.team2.name}`
       : 'H2H данные отсутствуют';
 
+    const matchDataJson = JSON.stringify(matchData, null, 2);
+
     const prompt = `Ты — профессиональный аналитик по киберспорту ${matchData.game}.
 
+У тебя есть данные, собранные из интернет-источников (API статистики) в формате JSON и краткое текстовое описание матча. Даже если какие-то поля в JSON пустые или отсутствуют, НЕ пиши, что недостаточно данных. Всегда делай обоснованный прогноз, используя имеющуюся статистику, свои знания и типичные паттерны матчей.
+
+Структурированные данные о матче в формате JSON (используй их внимательно, даже если часть полей пустая):
+${matchDataJson}
+
+Краткое текстовое описание матча:
 Матч: ${matchData.team1.name} vs ${matchData.team2.name}
 Турнир: ${matchData.tournament}
 Формат: Bo${matchData.bestOf || 1}
@@ -73,7 +81,7 @@ ${matchData.team2Recent.map((m: any) => `${m.date} против ${m.opponent}: $
 
 ВАЖНО: Если H2H показывает явное преимущество одной команды (например, 8-2) и высокий winrate на карте (70%+), вероятность должна быть >70%. Используй логику и статистику.
 
-Формат ответа должен быть JSON:
+Формат ответа должен быть строго JSON:
 {
   "team1Probability": <число от 0 до 100>,
   "team2Probability": <число от 0 до 100>,
@@ -92,7 +100,8 @@ ${matchData.team2Recent.map((m: any) => `${m.date} против ${m.opponent}: $
         messages: [
           {
             role: 'system',
-            content: 'Ты эксперт по анализу киберспортивных матчей. Отвечай только на русском языке в формате JSON.',
+            content:
+              'Ты эксперт по анализу киберспортивных матчей. У тебя есть доступ к собранной статистике и собственной базе знаний. Даже при неполных данных НИКОГДА не отвечай, что недостаточно данных — всегда давай развёрнутый анализ и вероятности. Отвечай только на русском языке в формате JSON.',
           },
           {
             role: 'user',
