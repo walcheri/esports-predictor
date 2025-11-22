@@ -24,7 +24,7 @@ const gameNames: Record<string, string> = {
 };
 
 export default function Matches() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const gameParam = searchParams.get("game") || "all";
   
@@ -37,6 +37,15 @@ export default function Matches() {
   useEffect(() => {
     setGame(gameParam);
   }, [gameParam]);
+
+  const handleGameChange = (value: string) => {
+    setGame(value);
+    if (value === "all") {
+      setSearchParams({});
+    } else {
+      setSearchParams({ game: value });
+    }
+  };
 
   useEffect(() => {
     fetchMatches();
@@ -93,16 +102,16 @@ export default function Matches() {
       <section className="pb-8 px-4">
         <div className="container mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Select value={game} onValueChange={setGame}>
+            <Select value={game} onValueChange={handleGameChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Выберите игру" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Все игры</SelectItem>
-                <SelectItem value="CS2">CS2</SelectItem>
-                <SelectItem value="Dota 2">Dota 2</SelectItem>
-                <SelectItem value="LoL">League of Legends</SelectItem>
-                <SelectItem value="Valorant">Valorant</SelectItem>
+                <SelectItem value="cs2">Counter-Strike 2</SelectItem>
+                <SelectItem value="dota2">Dota 2</SelectItem>
+                <SelectItem value="lol">League of Legends</SelectItem>
+                <SelectItem value="valorant">Valorant</SelectItem>
               </SelectContent>
             </Select>
 
