@@ -8,6 +8,7 @@ import Match from "./pages/Match";
 import History from "./pages/History";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import Index from "./pages/Index";
 
 const queryClient = new QueryClient();
 
@@ -18,7 +19,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Matches />} />
+          <Route path="/" element={<Index />} />
+          <Route path="/matches" element={<Matches />} />
           <Route path="/match/:id" element={<Match />} />
           <Route path="/history" element={<History />} />
           <Route path="/profile" element={<Profile />} />
