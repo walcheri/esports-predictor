@@ -23,12 +23,18 @@ serve(async (req) => {
       );
     }
 
-    // Map game names to PandaScore videogame slugs
+    // Map game codes/names to PandaScore videogame slugs
     const gameSlugMap: Record<string, string> = {
-      'CS2': 'csgo',
-      'Dota 2': 'dota2',
-      'LoL': 'league-of-legends',
-      'Valorant': 'valorant',
+      // New canonical codes from frontend
+      cs2: "csgo",
+      dota2: "dota2",
+      lol: "league-of-legends",
+      valorant: "valorant",
+      // Backwards compatibility with older values
+      CS2: "csgo",
+      "Dota 2": "dota2",
+      LoL: "league-of-legends",
+      Valorant: "valorant",
     };
 
     // Calculate time ranges

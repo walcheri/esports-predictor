@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Gamepad2, Sword, Trophy, Target } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const games = [
   {
@@ -31,6 +34,50 @@ const games = [
 
 const Index = () => {
   const navigate = useNavigate();
+  const [gameStats, setGameStats] = useState<
+    Record<string, { today: number; live: number }>
+  >({});
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchStats = async () => {
+      try {
+        const updates: Record<string, { today: number; live: number }> = {};
+
+        for (const game of games) {
+          const [todayRes, liveRes] = await Promise.all([
+            supabase.functions.invoke<{ matches: any[] }>("fetch-matches", {
+              body: { game: game.id, date: "today", status: "all" },
+            }),
+            supabase.functions.invoke<{ matches: any[] }>("fetch-matches", {
+              body: { game: game.id, date: "48h", status: "live" },
+            }),
+          ]);
+
+          const todayCount = todayRes.data?.matches?.length ?? 0;
+          const liveCount = liveRes.data?.matches?.length ?? 0;
+
+          updates[game.id] = { today: todayCount, live: liveCount };
+        }
+
+        if (isMounted) {
+          setGameStats(updates);
+        }
+      } catch (error) {
+        console.error("Error fetching game stats:", error);
+        toast.error("Не удалось загрузить статистику матчей");
+      }
+    };
+
+    fetchStats();
+    const interval = setInterval(fetchStats, 5 * 60 * 1000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const handleGameClick = (gameId: string) => {
     navigate(`/matches?game=${gameId}`);
@@ -74,9 +121,16 @@ const Index = () => {
                     <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
                       {game.name}
                     </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Смотреть матчи
-                    </p>
+                    <div className="text-sm text-muted-foreground text-center space-y-1">
+                      {gameStats[game.id] ? (
+                        <>
+                          <p>{gameStats[game.id].today} матчей сегодня</p>
+                          <p>{gameStats[game.id].live} матчей live</p>
+                        </>
+                      ) : (
+                        <p>Загрузка статистики...</p>
+                      )}
+                    </div>
                   </div>
                   
                   {/* Glow effect */}
