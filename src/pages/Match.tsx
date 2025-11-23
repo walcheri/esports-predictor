@@ -171,7 +171,20 @@ export default function Match() {
               </div>
             </div>
 
-            <p className="text-center mt-6 text-muted-foreground">{matchData.tournament}</p>
+            <div className="flex items-center justify-center gap-4 mt-6">
+              <p className="text-muted-foreground">{matchData.tournament}</p>
+              {matchData.streamUrl && (
+                <a 
+                  href={matchData.streamUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-red-600/20 text-red-400 border border-red-600/50 rounded-lg hover:bg-red-600/30 transition-colors"
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  Смотреть стрим
+                </a>
+              )}
+            </div>
           </Card>
 
           {/* Team Lineups */}
@@ -277,11 +290,52 @@ export default function Match() {
             </Card>
           )}
           
-          {/* Recent Matches */}
+          {/* Form Chart */}
+          <Card className="p-6 mb-8">
+            <h3 className="text-lg font-bold mb-4">Форма команд (последние 5 матчей)</h3>
+            <div className="grid md:grid-cols-2 gap-8">
+              <div>
+                <p className="text-sm text-muted-foreground mb-3">{matchData.team1.name}</p>
+                <div className="flex gap-2">
+                  {matchData.team1Recent.map((match: any, i: number) => (
+                    <div
+                      key={i}
+                      className={`flex-1 h-16 rounded-lg flex items-center justify-center font-bold text-lg ${
+                        match.result === "win"
+                          ? "bg-primary/20 text-primary border-2 border-primary/50"
+                          : "bg-destructive/20 text-destructive border-2 border-destructive/50"
+                      }`}
+                    >
+                      {match.result === "win" ? "W" : "L"}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-3">{matchData.team2.name}</p>
+                <div className="flex gap-2">
+                  {matchData.team2Recent.map((match: any, i: number) => (
+                    <div
+                      key={i}
+                      className={`flex-1 h-16 rounded-lg flex items-center justify-center font-bold text-lg ${
+                        match.result === "win"
+                          ? "bg-primary/20 text-primary border-2 border-primary/50"
+                          : "bg-destructive/20 text-destructive border-2 border-destructive/50"
+                      }`}
+                    >
+                      {match.result === "win" ? "W" : "L"}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Recent Matches Details */}
           <div className="grid md:grid-cols-2 gap-8 mb-8">
             <Card className="p-6">
               <h3 className="text-lg font-bold mb-4">
-                Последние матчи {matchData.team1.name}
+                Детали матчей {matchData.team1.name}
               </h3>
               <div className="space-y-3">
                 {matchData.team1Recent.map((match: any, i: number) => (
@@ -302,7 +356,7 @@ export default function Match() {
                             : ""
                         }
                       >
-                        {match.result === "win" ? "Победа" : "Поражение"}
+                        {match.result === "win" ? "W" : "L"}
                       </Badge>
                       <p className="text-sm mt-1">{match.score}</p>
                     </div>
@@ -313,7 +367,7 @@ export default function Match() {
 
             <Card className="p-6">
               <h3 className="text-lg font-bold mb-4">
-                Последние матчи {matchData.team2.name}
+                Детали матчей {matchData.team2.name}
               </h3>
               <div className="space-y-3">
                 {matchData.team2Recent.map((match: any, i: number) => (
@@ -334,7 +388,7 @@ export default function Match() {
                             : ""
                         }
                       >
-                        {match.result === "win" ? "Победа" : "Поражение"}
+                        {match.result === "win" ? "W" : "L"}
                       </Badge>
                       <p className="text-sm mt-1">{match.score}</p>
                     </div>
@@ -392,14 +446,32 @@ export default function Match() {
                 </div>
 
                 {/* Analysis Text */}
-                <div className="prose prose-invert max-w-none">
-                  <div className="bg-muted/50 rounded-lg p-6">
-                    <h4 className="text-lg font-bold mb-4">Анализ матча</h4>
+                <div className="bg-muted/50 rounded-lg p-6 md:p-8">
+                  <h4 className="text-xl font-bold mb-6 flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    Подробный анализ матча
+                  </h4>
+                  <div className="space-y-4 text-foreground leading-relaxed">
                     {prediction.analysis.split('\n\n').map((paragraph, i) => (
-                      <p key={i} className="text-foreground mb-4 last:mb-0">
+                      <p key={i} className="text-base">
                         {paragraph}
                       </p>
                     ))}
+                  </div>
+                  
+                  <div className="mt-8 pt-6 border-t border-border">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="bg-primary/10 rounded-lg p-4 border border-primary/30">
+                        <p className="text-sm text-muted-foreground mb-1">Вероятность победы</p>
+                        <p className="text-2xl font-bold text-primary">{matchData.team1.name}</p>
+                        <p className="text-4xl font-black text-primary mt-2">{prediction.team1Probability}%</p>
+                      </div>
+                      <div className="bg-muted rounded-lg p-4 border border-border">
+                        <p className="text-sm text-muted-foreground mb-1">Вероятность победы</p>
+                        <p className="text-2xl font-bold">{matchData.team2.name}</p>
+                        <p className="text-4xl font-black mt-2">{prediction.team2Probability}%</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

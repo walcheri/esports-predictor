@@ -130,6 +130,7 @@ serve(async (req) => {
       game: match.videogame?.name || 'Unknown',
       status: match.status === 'running' ? 'live' : 'upcoming',
       startTime: new Date(match.scheduled_at || match.begin_at).toLocaleString('ru-RU'),
+      streamUrl: match.streams_list?.[0]?.raw_url || match.official_stream_url || null,
       
       // Map/Game info
       bestOf: match.number_of_games || 1,
