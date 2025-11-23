@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { game, date, status } = await req.json();
+    const { game, date, status, leagueId } = await req.json();
     const PANDA_SCORE_TOKEN = Deno.env.get('PANDA_SCORE_TOKEN');
     
     if (!PANDA_SCORE_TOKEN) {
@@ -55,6 +55,9 @@ serve(async (req) => {
     
     const weekEnd = new Date(now);
     weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+    
+    const sevenDaysAhead = new Date(now);
+    sevenDaysAhead.setUTCDate(sevenDaysAhead.getUTCDate() + 7);
 
     // Build PandaScore API URL based on game and status
     let url: string;
@@ -97,16 +100,21 @@ serve(async (req) => {
       } else if (date === 'week') {
         params.append('range[begin_at]', `${now.toISOString()},${weekEnd.toISOString()}`);
       } else {
-        // Default: next 48 hours for upcoming/all
-        params.append('range[begin_at]', `${now.toISOString()},${next48Hours.toISOString()}`);
+        // Default: next 7 days for upcoming/all (increased from 48h)
+        params.append('range[begin_at]', `${now.toISOString()},${sevenDaysAhead.toISOString()}`);
       }
+    }
+    
+    // Add tournament/league filter if specified
+    if (leagueId && leagueId !== 'all') {
+      params.append('filter[league_id]', leagueId);
     }
     
     // Sort by begin_at ascending
     params.append('sort', 'begin_at');
     
-    // Request more matches to show 20+
-    params.append('page[size]', '50');
+    // Request 100+ matches for better filtering
+    params.append('page[size]', '100');
     
     if (params.toString()) {
       url += '?' + params.toString();
