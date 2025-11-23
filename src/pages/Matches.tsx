@@ -27,35 +27,88 @@ export default function Matches() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const gameParam = searchParams.get("game") || "all";
+  const tournamentParam = searchParams.get("tournament") || "all";
   
   const [game, setGame] = useState<string>(gameParam);
-  const [date, setDate] = useState<string>("48h");
+  const [tournament, setTournament] = useState<string>(tournamentParam);
+  const [date, setDate] = useState<string>("week");
   const [status, setStatus] = useState<string>("upcoming");
   const [isLoading, setIsLoading] = useState(true);
   const [matches, setMatches] = useState<any[]>([]);
+  const [tournaments, setTournaments] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const matchesPerPage = 24;
 
   useEffect(() => {
     setGame(gameParam);
-  }, [gameParam]);
+    setTournament(tournamentParam);
+  }, [gameParam, tournamentParam]);
 
   const handleGameChange = (value: string) => {
     setGame(value);
-    if (value === "all") {
-      setSearchParams({});
-    } else {
-      setSearchParams({ game: value });
+    setTournament("all");
+    setCurrentPage(1);
+    const newParams: Record<string, string> = {};
+    if (value !== "all") {
+      newParams.game = value;
     }
+    setSearchParams(newParams);
+  };
+
+  const handleTournamentChange = (value: string) => {
+    setTournament(value);
+    setCurrentPage(1);
+    const newParams: Record<string, string> = {};
+    if (game !== "all") {
+      newParams.game = game;
+    }
+    if (value !== "all") {
+      newParams.tournament = value;
+    }
+    setSearchParams(newParams);
   };
 
   useEffect(() => {
+    fetchTournaments();
+  }, [game]);
+
+  useEffect(() => {
     fetchMatches();
-  }, [game, date, status]);
+  }, [game, date, status, tournament]);
+
+  const fetchTournaments = async () => {
+    if (!game || game === "all") {
+      setTournaments([]);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-tournaments', {
+        body: { game },
+      });
+
+      if (error) {
+        console.error('Error fetching tournaments:', error);
+        setTournaments([]);
+      } else {
+        setTournaments(data?.tournaments || []);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setTournaments([]);
+    }
+  };
 
   const fetchMatches = async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('fetch-matches', {
-        body: { game, date, status },
+        body: { 
+          game, 
+          date, 
+          status,
+          leagueId: tournament !== "all" ? tournament : null,
+        },
       });
 
       if (error) {
@@ -72,6 +125,17 @@ export default function Matches() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Pagination logic
+  const indexOfLastMatch = currentPage * matchesPerPage;
+  const indexOfFirstMatch = indexOfLastMatch - matchesPerPage;
+  const currentMatches = matches.slice(indexOfFirstMatch, indexOfLastMatch);
+  const totalPages = Math.ceil(matches.length / matchesPerPage);
+
+  const paginate = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -93,7 +157,7 @@ export default function Matches() {
             {gameNames[game] || "Все игры"}
           </h1>
           <p className="text-muted-foreground mt-2">
-            Предстоящие матчи и Live-игры
+            {matches.length > 0 && `${matches.length} матчей найдено`}
           </p>
         </div>
       </section>
@@ -101,7 +165,7 @@ export default function Matches() {
       {/* Filters */}
       <section className="pb-8 px-4">
         <div className="container mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Select value={game} onValueChange={handleGameChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Выберите игру" />
@@ -115,15 +179,32 @@ export default function Matches() {
               </SelectContent>
             </Select>
 
+            <Select 
+              value={tournament} 
+              onValueChange={handleTournamentChange}
+              disabled={game === "all" || tournaments.length === 0}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={game === "all" ? "Выберите игру" : "Выберите турнир"} />
+              </SelectTrigger>
+              <SelectContent className="bg-card z-50">
+                <SelectItem value="all">Все турниры</SelectItem>
+                {tournaments.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Select value={date} onValueChange={setDate}>
               <SelectTrigger>
                 <SelectValue placeholder="Дата" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="48h">Ближайшие 48 часов</SelectItem>
+                <SelectItem value="week">7 дней</SelectItem>
                 <SelectItem value="today">Сегодня</SelectItem>
                 <SelectItem value="tomorrow">Завтра</SelectItem>
-                <SelectItem value="week">На этой неделе</SelectItem>
               </SelectContent>
             </Select>
 
@@ -142,28 +223,77 @@ export default function Matches() {
       </section>
 
       {/* Matches Grid */}
-      <section className="pb-16 px-4">
+      <section className="pb-8 px-4">
         <div className="container mx-auto">
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {matches.map((match) => (
-                <MatchCard key={match.id} {...match} />
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="h-[200px] rounded-lg" />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {matches.map((match) => (
-                <MatchCard key={match.id} {...match} />
-              ))}
-            </div>
-          )}
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {currentMatches.map((match) => (
+                  <MatchCard key={match.id} {...match} />
+                ))}
+              </div>
 
-          {!isLoading && matches.length === 0 && (
-            <div className="text-center py-16">
-              <p className="text-xl text-muted-foreground">
-                Нет матчей по выбранным фильтрам
-              </p>
-            </div>
+              {!isLoading && matches.length === 0 && (
+                <div className="text-center py-16">
+                  <p className="text-xl text-muted-foreground">
+                    Нет матчей по выбранным фильтрам
+                  </p>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-12">
+                  <Button
+                    variant="outline"
+                    onClick={() => paginate(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    Назад
+                  </Button>
+                  
+                  <div className="flex gap-2">
+                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          onClick={() => paginate(pageNum)}
+                          className="w-10 h-10 p-0"
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => paginate(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Вперёд
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
