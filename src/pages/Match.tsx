@@ -17,6 +17,7 @@ import { ArrowLeft, Loader2, TrendingUp } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Legend, Bar, BarChart, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
 
 export default function Match() {
   const { id } = useParams();
@@ -451,12 +452,8 @@ export default function Match() {
                     <TrendingUp className="h-5 w-5 text-primary" />
                     Подробный анализ матча
                   </h4>
-                  <div className="space-y-4 text-foreground leading-relaxed">
-                    {prediction.analysis.split('\n\n').map((paragraph, i) => (
-                      <p key={i} className="text-base">
-                        {paragraph}
-                      </p>
-                    ))}
+                  <div className="prose prose-invert max-w-none prose-headings:text-foreground prose-headings:font-bold prose-h3:text-xl prose-h3:mt-6 prose-h3:mb-3 prose-p:text-muted-foreground prose-p:leading-relaxed prose-strong:text-foreground prose-strong:font-semibold prose-em:text-primary prose-ul:text-muted-foreground prose-li:text-muted-foreground">
+                    <ReactMarkdown>{prediction.analysis}</ReactMarkdown>
                   </div>
                   
                   <div className="mt-8 pt-6 border-t border-border">
