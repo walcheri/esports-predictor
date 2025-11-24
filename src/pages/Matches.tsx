@@ -241,9 +241,14 @@ export default function Matches() {
 
               {!isLoading && matches.length === 0 && (
                 <div className="text-center py-16">
-                  <p className="text-xl text-muted-foreground">
-                    Нет матчей по выбранным фильтрам
-                  </p>
+                  <div className="max-w-md mx-auto">
+                    <p className="text-xl text-muted-foreground mb-2">
+                      Матчи скоро появятся
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Попробуйте изменить фильтры или выбрать другую игру
+                    </p>
+                  </div>
                 </div>
               )}
 
