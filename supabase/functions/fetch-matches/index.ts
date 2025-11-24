@@ -27,13 +27,13 @@ serve(async (req) => {
     const gameSlugMap: Record<string, string> = {
       // New canonical codes from frontend
       cs2: "csgo",
-      dota2: "dota2",
-      lol: "league-of-legends",
+      dota2: "dota-2",
+      lol: "lol",
       valorant: "valorant",
       // Backwards compatibility with older values
       CS2: "csgo",
-      "Dota 2": "dota2",
-      LoL: "league-of-legends",
+      "Dota 2": "dota-2",
+      LoL: "lol",
       Valorant: "valorant",
     };
 
