@@ -158,20 +158,32 @@ serve(async (req) => {
         const hours = moscowTime.getUTCHours().toString().padStart(2, '0');
         const minutes = moscowTime.getUTCMinutes().toString().padStart(2, '0');
         
+        // Extract team names with proper fallbacks
+        const team1Name = match.opponents?.[0]?.opponent?.name;
+        const team2Name = match.opponents?.[1]?.opponent?.name;
+        const team1Logo = match.opponents?.[0]?.opponent?.image_url;
+        const team2Logo = match.opponents?.[1]?.opponent?.image_url;
+        
+        // Check if this is a qualifier match (TBD teams)
+        const isQualifier = !team1Name || !team2Name || 
+                           team1Name.toLowerCase().includes('tbd') || 
+                           team2Name.toLowerCase().includes('tbd');
+        
         return {
           id: match.id.toString(),
           team1: {
-            name: match.opponents?.[0]?.opponent?.name || 'Team 1',
-            logo: match.opponents?.[0]?.opponent?.image_url || '',
+            name: team1Name || 'Qualifier Team 1',
+            logo: team1Logo || '',
           },
           team2: {
-            name: match.opponents?.[1]?.opponent?.name || 'Team 2',
-            logo: match.opponents?.[1]?.opponent?.image_url || '',
+            name: team2Name || 'Qualifier Team 2',
+            logo: team2Logo || '',
           },
           tournament: match.league?.name || match.serie?.full_name || 'Unknown Tournament',
           startTime: `${day}.${month} в ${hours}:${minutes}`,
           status: match.status === 'running' ? 'live' : 'upcoming',
           game: match.videogame?.name || 'Unknown',
+          isQualifier,
         };
       });
 

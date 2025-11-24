@@ -18,6 +18,7 @@ interface MatchCardProps {
   startTime: string;
   status: "live" | "upcoming";
   game: string;
+  isQualifier?: boolean;
 }
 
 export const MatchCard = ({
@@ -28,6 +29,7 @@ export const MatchCard = ({
   startTime,
   status,
   game,
+  isQualifier,
 }: MatchCardProps) => {
   return (
     <Card className="overflow-hidden hover:border-primary/50 transition-all duration-300 group">
@@ -57,7 +59,9 @@ export const MatchCard = ({
               {team1.logo ? (
                 <img src={team1.logo} alt={team1.name} className="w-12 h-12 object-contain" />
               ) : (
-                <span className="text-2xl font-bold text-primary">{team1.name[0]}</span>
+                <span className="text-2xl font-bold text-muted-foreground">
+                  {isQualifier ? "?" : team1.name[0]}
+                </span>
               )}
             </div>
             <span className="text-sm font-semibold text-center line-clamp-1">{team1.name}</span>
@@ -70,7 +74,9 @@ export const MatchCard = ({
               {team2.logo ? (
                 <img src={team2.logo} alt={team2.name} className="w-12 h-12 object-contain" />
               ) : (
-                <span className="text-2xl font-bold text-primary">{team2.name[0]}</span>
+                <span className="text-2xl font-bold text-muted-foreground">
+                  {isQualifier ? "?" : team2.name[0]}
+                </span>
               )}
             </div>
             <span className="text-sm font-semibold text-center line-clamp-1">{team2.name}</span>
@@ -79,7 +85,14 @@ export const MatchCard = ({
 
         {/* Tournament and Time */}
         <div className="space-y-2 pt-2 border-t border-border">
-          <p className="text-xs text-muted-foreground line-clamp-1">{tournament}</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground line-clamp-1">{tournament}</p>
+            {isQualifier && (
+              <Badge variant="outline" className="text-xs">
+                Квалификация
+              </Badge>
+            )}
+          </div>
           <p className="text-sm font-medium">{startTime}</p>
         </div>
 
