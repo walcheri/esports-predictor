@@ -31,10 +31,11 @@ serve(async (req) => {
     }
 
     // Map game codes to PandaScore videogame slugs
+    // IMPORTANT: PandaScore uses 'lol' not 'league-of-legends', 'dota2' not 'dota-2'
     const gameSlugMap: Record<string, string> = {
       cs2: "csgo",
       dota2: "dota2",
-      lol: "league-of-legends",
+      lol: "lol",
       valorant: "valorant",
     };
 

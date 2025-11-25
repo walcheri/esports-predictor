@@ -191,13 +191,43 @@ ${matchData.team2Recent.map((m: any) => `${m.date} vs ${m.opponent}: ${m.result 
     let prediction;
     try {
       // Try to extract JSON from markdown code blocks if present
-      const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/) || 
-                       content.match(/(\{[\s\S]*\})/);
-      const jsonStr = jsonMatch ? jsonMatch[1] : content;
-      prediction = JSON.parse(jsonStr.trim());
+      let jsonStr = content;
+      
+      // Remove markdown code blocks
+      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        jsonStr = jsonMatch[1].trim();
+      }
+      
+      // Try to find JSON object pattern
+      const objectMatch = jsonStr.match(/\{[\s\S]*"team1Probability"[\s\S]*"team2Probability"[\s\S]*"analysis"[\s\S]*\}/);
+      if (objectMatch) {
+        jsonStr = objectMatch[0];
+      }
+      
+      // Clean up the JSON string - escape problematic characters in analysis
+      // First, try direct parse
+      try {
+        prediction = JSON.parse(jsonStr);
+      } catch {
+        // If direct parse fails, try to extract values manually
+        const team1Match = jsonStr.match(/"team1Probability"\s*:\s*(\d+)/);
+        const team2Match = jsonStr.match(/"team2Probability"\s*:\s*(\d+)/);
+        const analysisMatch = jsonStr.match(/"analysis"\s*:\s*"([\s\S]*?)(?:"\s*}|\"\s*,\s*")/);
+        
+        if (team1Match && team2Match) {
+          prediction = {
+            team1Probability: parseInt(team1Match[1]),
+            team2Probability: parseInt(team2Match[1]),
+            analysis: analysisMatch ? analysisMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : 'Анализ недоступен. Попробуйте снова.',
+          };
+        } else {
+          throw new Error('Could not extract prediction values');
+        }
+      }
     } catch (parseError) {
       console.error('Failed to parse AI response as JSON:', parseError);
-      // Fallback: create a basic prediction
+      // Fallback: create a basic prediction with the raw content as analysis
       prediction = {
         team1Probability: 50,
         team2Probability: 50,
