@@ -79,12 +79,45 @@ export default function Match() {
     }
   };
 
+  // Determine winner/loser colors based on probability
   const chartData = prediction
     ? [
-        { name: matchData?.team1?.name || "Team 1", value: prediction.team1Probability, color: "#00FFAA" },
-        { name: matchData?.team2?.name || "Team 2", value: prediction.team2Probability, color: "#404040" },
+        { 
+          name: matchData?.team1?.name || "Team 1", 
+          value: prediction.team1Probability, 
+          color: prediction.team1Probability >= prediction.team2Probability ? "#00FFAA" : "#FF4D6B" 
+        },
+        { 
+          name: matchData?.team2?.name || "Team 2", 
+          value: prediction.team2Probability, 
+          color: prediction.team2Probability > prediction.team1Probability ? "#00FFAA" : "#FF4D6B" 
+        },
       ]
     : [];
+
+  // Custom tooltip for dark theme
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg">
+          <p className="text-foreground font-medium">{`${payload[0].name}: ${payload[0].value}%`}</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const CustomBarTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg">
+          <p className="text-foreground font-medium">{label}</p>
+          <p className="text-primary">{`Winrate: ${payload[0].value}%`}</p>
+        </div>
+      );
+    }
+    return null;
+  };
 
   if (isLoadingMatch) {
     return (
@@ -271,10 +304,10 @@ export default function Match() {
                     { team: matchData.team1.name, winrate: matchData.mapWinrates.team1 },
                     { team: matchData.team2.name, winrate: matchData.mapWinrates.team2 },
                   ]}>
-                    <XAxis dataKey="team" />
-                    <YAxis domain={[0, 100]} />
-                    <RechartsTooltip />
-                    <Bar dataKey="winrate" fill="hsl(var(--primary))" />
+                    <XAxis dataKey="team" stroke="hsl(var(--muted-foreground))" />
+                    <YAxis domain={[0, 100]} stroke="hsl(var(--muted-foreground))" />
+                    <RechartsTooltip content={<CustomBarTooltip />} />
+                    <Bar dataKey="winrate" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -431,17 +464,23 @@ export default function Match() {
                         data={chartData}
                         cx="50%"
                         cy="50%"
-                        labelLine={false}
+                        labelLine={true}
                         label={({ name, value }) => `${name}: ${value}%`}
-                        outerRadius={100}
+                        outerRadius={110}
+                        innerRadius={60}
                         fill="#8884d8"
                         dataKey="value"
+                        stroke="hsl(var(--border))"
+                        strokeWidth={2}
                       >
                         {chartData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Legend />
+                      <RechartsTooltip content={<CustomTooltip />} />
+                      <Legend 
+                        formatter={(value) => <span className="text-foreground">{value}</span>}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>

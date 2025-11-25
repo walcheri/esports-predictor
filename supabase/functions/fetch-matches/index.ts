@@ -24,15 +24,16 @@ serve(async (req) => {
     }
 
     // Map game codes/names to PandaScore videogame slugs
+    // IMPORTANT: PandaScore uses 'dota2' not 'dota-2', 'lol' not 'league-of-legends'
     const gameSlugMap: Record<string, string> = {
       // New canonical codes from frontend
       cs2: "csgo",
-      dota2: "dota-2",
+      dota2: "dota2",
       lol: "lol",
       valorant: "valorant",
       // Backwards compatibility with older values
       CS2: "csgo",
-      "Dota 2": "dota-2",
+      "Dota 2": "dota2",
       LoL: "lol",
       Valorant: "valorant",
     };
@@ -113,8 +114,8 @@ serve(async (req) => {
     // Sort by begin_at ascending
     params.append('sort', 'begin_at');
     
-    // Request 100+ matches for better filtering
-    params.append('page[size]', '100');
+    // Request 200 matches for better coverage
+    params.append('per_page', '200');
     
     if (params.toString()) {
       url += '?' + params.toString();
