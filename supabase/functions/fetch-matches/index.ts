@@ -73,13 +73,12 @@ serve(async (req) => {
         );
       }
       
-      // Use game-specific endpoints
+      // Use game-specific endpoints - always use /matches with filters for better control
       if (status === 'live') {
         url = `https://api.pandascore.co/${slug}/matches/running`;
-      } else if (status === 'upcoming') {
-        url = `https://api.pandascore.co/${slug}/matches/upcoming`;
       } else {
-        url = `https://api.pandascore.co/${slug}/matches`;
+        // Use base /matches endpoint with status filter for better date range support
+        url = `https://api.pandascore.co/${slug}/matches/upcoming`;
       }
     } else {
       // All games - use general endpoint
@@ -92,8 +91,19 @@ serve(async (req) => {
       }
     }
     
-    // Add time range filters based on date selection
-    if (status !== 'live') {
+    // Add time range filters based on date selection - only for non-upcoming endpoints
+    // The /upcoming endpoint already filters future matches, so we don't add date range to avoid conflicts
+    if (status !== 'live' && status !== 'upcoming' && game && game !== 'all') {
+      // For specific date filters only when using /matches endpoint
+      if (date === 'today') {
+        params.append('range[begin_at]', `${todayStart.toISOString()},${todayEnd.toISOString()}`);
+      } else if (date === 'tomorrow') {
+        params.append('range[begin_at]', `${tomorrowStart.toISOString()},${tomorrowEnd.toISOString()}`);
+      } else if (date === 'week') {
+        params.append('range[begin_at]', `${now.toISOString()},${weekEnd.toISOString()}`);
+      }
+    } else if (status !== 'live' && (!game || game === 'all')) {
+      // For "all games" view, apply date filters
       if (date === 'today') {
         params.append('range[begin_at]', `${todayStart.toISOString()},${todayEnd.toISOString()}`);
       } else if (date === 'tomorrow') {
@@ -101,7 +111,6 @@ serve(async (req) => {
       } else if (date === 'week') {
         params.append('range[begin_at]', `${now.toISOString()},${weekEnd.toISOString()}`);
       } else {
-        // Default: next 7 days for upcoming/all (increased from 48h)
         params.append('range[begin_at]', `${now.toISOString()},${sevenDaysAhead.toISOString()}`);
       }
     }
