@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowLeft, Loader2, TrendingUp, Save } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Cell, Pie, PieChart, ResponsiveContainer, Legend, Bar, BarChart, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -519,16 +520,20 @@ export default function Match() {
                 </div>
 
                 {/* Analysis Text */}
-                <div className="bg-muted/50 rounded-lg p-6 md:p-8">
-                  <h4 className="text-xl font-bold mb-6 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                    Подробный анализ матча
-                  </h4>
-                  <div className="prose prose-invert max-w-none prose-headings:text-foreground prose-headings:font-bold prose-h3:text-xl prose-h3:mt-6 prose-h3:mb-3 prose-p:text-muted-foreground prose-p:leading-relaxed prose-strong:text-foreground prose-strong:font-semibold prose-em:text-primary prose-ul:text-muted-foreground prose-li:text-muted-foreground">
-                    <ReactMarkdown>{prediction.analysis}</ReactMarkdown>
+                <div className="rounded-xl border-2 border-primary/30 bg-gradient-to-b from-card to-background overflow-hidden shadow-[0_0_30px_hsla(162,100%,50%,0.1)]">
+                  <div className="p-4 md:p-6 border-b border-primary/20 bg-primary/5">
+                    <h4 className="text-xl font-bold flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                      Подробный анализ матча
+                    </h4>
                   </div>
+                  <ScrollArea className="h-[70vh]">
+                    <div className="p-6 md:p-8 premium-report">
+                      <ReactMarkdown>{prediction.analysis}</ReactMarkdown>
+                    </div>
+                  </ScrollArea>
                   
-                  <div className="mt-8 pt-6 border-t border-border">
+                  <div className="p-6 md:p-8 border-t border-border">
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="bg-primary/10 rounded-lg p-4 border border-primary/30">
                         <p className="text-sm text-muted-foreground mb-1">Вероятность победы</p>

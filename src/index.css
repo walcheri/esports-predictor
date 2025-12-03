@@ -67,3 +67,68 @@ All colors MUST be HSL.
     animation: fade-in 0.3s ease-out;
   }
 }
+
+/* Premium Report Markdown Styles */
+.premium-report {
+  @apply text-muted-foreground leading-relaxed;
+}
+
+.premium-report h2 {
+  @apply text-primary font-bold text-xl mt-8 mb-4 pb-2 border-b border-primary/30;
+}
+
+.premium-report h3 {
+  @apply text-foreground font-semibold text-lg mt-6 mb-3;
+}
+
+.premium-report p {
+  @apply mb-6 leading-7;
+}
+
+.premium-report strong {
+  @apply text-foreground font-semibold;
+}
+
+.premium-report em {
+  @apply text-primary/90 not-italic;
+}
+
+.premium-report ul, .premium-report ol {
+  @apply mb-6 pl-6 space-y-2;
+}
+
+.premium-report li {
+  @apply leading-7;
+}
+
+.premium-report table {
+  @apply w-full mb-6 border-collapse rounded-lg overflow-hidden;
+}
+
+.premium-report thead tr {
+  @apply bg-primary/20;
+}
+
+.premium-report th {
+  @apply px-4 py-3 text-left font-semibold text-foreground;
+}
+
+.premium-report tbody tr:nth-child(odd) {
+  @apply bg-muted/30;
+}
+
+.premium-report tbody tr:nth-child(even) {
+  @apply bg-muted/10;
+}
+
+.premium-report td {
+  @apply px-4 py-3 border-t border-border/30;
+}
+
+.premium-report blockquote {
+  @apply border-l-4 border-primary pl-4 italic text-muted-foreground my-6;
+}
+
+.premium-report hr {
+  @apply border-border my-8;
+}
