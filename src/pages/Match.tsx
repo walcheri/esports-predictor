@@ -13,17 +13,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Loader2, TrendingUp } from "lucide-react";
+import { ArrowLeft, Loader2, TrendingUp, Save } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Legend, Bar, BarChart, XAxis, YAxis, Tooltip as RechartsTooltip } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSavePrediction } from "@/hooks/usePredictions";
 
 export default function Match() {
   const { id } = useParams();
+  const { user } = useAuth();
+  const savePrediction = useSavePrediction();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoadingMatch, setIsLoadingMatch] = useState(true);
   const [matchData, setMatchData] = useState<any>(null);
+  const [predictionSaved, setPredictionSaved] = useState(false);
   const [prediction, setPrediction] = useState<{
     team1Probability: number;
     team2Probability: number;
@@ -59,6 +64,7 @@ export default function Match() {
     if (!matchData) return;
     
     setIsGenerating(true);
+    setPredictionSaved(false);
     try {
       const { data, error } = await supabase.functions.invoke('generate-prediction', {
         body: { matchData },
@@ -70,6 +76,33 @@ export default function Match() {
       } else {
         setPrediction(data);
         toast.success('Прогноз успешно сгенерирован!');
+        
+        // Auto-save prediction if user is logged in
+        if (user && id) {
+          try {
+            await savePrediction.mutateAsync({
+              match_id: id,
+              team_a: matchData.team1?.name || "Team 1",
+              team_b: matchData.team2?.name || "Team 2",
+              game: matchData.game || "unknown",
+              tournament: matchData.tournament || null,
+              predicted_winner: data.team1Probability > data.team2Probability 
+                ? matchData.team1?.name 
+                : matchData.team2?.name,
+              ai_probability_a: String(data.team1Probability),
+              ai_probability_b: String(data.team2Probability),
+              report_preview: data.analysis?.substring(0, 200) || null,
+              full_report: data.analysis || null,
+            });
+            setPredictionSaved(true);
+            toast.success('Прогноз сохранён в профиле!', {
+              icon: <Save className="w-4 h-4" />,
+            });
+          } catch (saveError) {
+            console.error('Error saving prediction:', saveError);
+            // Don't show error - saving is optional
+          }
+        }
       }
     } catch (error) {
       console.error('Error:', error);

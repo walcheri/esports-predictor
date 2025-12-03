@@ -14,7 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      predictions: {
+        Row: {
+          ai_probability_a: string | null
+          ai_probability_b: string | null
+          created_at: string | null
+          full_report: string | null
+          game: string
+          id: string
+          match_id: string
+          predicted_winner: string | null
+          report_preview: string | null
+          team_a: string
+          team_b: string
+          tournament: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_probability_a?: string | null
+          ai_probability_b?: string | null
+          created_at?: string | null
+          full_report?: string | null
+          game: string
+          id?: string
+          match_id: string
+          predicted_winner?: string | null
+          report_preview?: string | null
+          team_a: string
+          team_b: string
+          tournament?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_probability_a?: string | null
+          ai_probability_b?: string | null
+          created_at?: string | null
+          full_report?: string | null
+          game?: string
+          id?: string
+          match_id?: string
+          predicted_winner?: string | null
+          report_preview?: string | null
+          team_a?: string
+          team_b?: string
+          tournament?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "predictions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          predictions_count: number | null
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          id: string
+          predictions_count?: number | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          predictions_count?: number | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

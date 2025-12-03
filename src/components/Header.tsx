@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
+import { UserMenu } from "./UserMenu";
 
 export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -27,27 +28,25 @@ export const Header = () => {
             Матчи
           </Link>
           <Link
-            to="/history"
+            to="/profile?tab=history"
             className="text-muted-foreground hover:text-primary transition-colors font-medium"
           >
             История
           </Link>
-          <Link
-            to="/profile"
-            className="text-muted-foreground hover:text-primary transition-colors font-medium"
-          >
-            Профиль
-          </Link>
+          <UserMenu />
         </nav>
 
         {/* Mobile Menu Button */}
-        <button
-          className="md:hidden text-foreground"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="Toggle menu"
-        >
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <div className="md:hidden flex items-center gap-4">
+          <UserMenu />
+          <button
+            className="text-foreground"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu */}
@@ -62,7 +61,7 @@ export const Header = () => {
               Матчи
             </Link>
             <Link
-              to="/history"
+              to="/profile?tab=history"
               className="text-muted-foreground hover:text-primary transition-colors font-medium py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
