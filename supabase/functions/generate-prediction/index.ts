@@ -18,22 +18,24 @@ serve(async (req) => {
       throw new Error('Match data is required');
     }
 
-    const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+    const ARTEMOX_API_KEY = Deno.env.get('ARTEMOX_API_KEY');
     
-    if (!PERPLEXITY_API_KEY) {
-      console.error('PERPLEXITY_API_KEY not configured');
+    if (!ARTEMOX_API_KEY) {
+      console.error('ARTEMOX_API_KEY not configured');
       return new Response(
-        JSON.stringify({ error: 'Perplexity API key not configured' }),
+        JSON.stringify({ error: 'Artemox API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('Starting Perplexity prediction for:', matchData.team1?.name || matchData.teamA, 'vs', matchData.team2?.name || matchData.teamB);
 
     const teamA = matchData.team1?.name || matchData.teamA || 'Team A';
     const teamB = matchData.team2?.name || matchData.teamB || 'Team B';
     const game = matchData.game || 'Unknown';
     const tournament = matchData.tournament || 'Unknown';
+    const format = matchData.format || 'Bo3';
+    const startTime = matchData.startTime || 'TBD';
+
+    console.log('Starting Artemox prediction for:', teamA, 'vs', teamB);
 
     // Prepare PandaScore stats JSON
     const statsJson = JSON.stringify({
@@ -46,172 +48,82 @@ serve(async (req) => {
       startTime: matchData.startTime,
     }, null, 2);
 
-    // Step 1: Web search for extended real-time data (rosters, H2H, player styles from HLTV/Liquipedia)
-    const searchPrompt = `Найди максимально свежие данные по матчу ${teamA} vs ${teamB} (${game}, ${tournament}):
+    const fullPrompt = `Ты — лучший русскоязычный аналитик киберспорта в мире (уровень launders + SPUNJ + Thorin). 
+Сделай максимально объёмный и убедительный разбор матча на русском языке — минимум 1500 слов, лучше 2000–3000.
 
-1. Полные составы команд с ролями, KDA и рейтингом игроков (за последние 3-6 месяцев)
-2. Стили игры каждого игрока на ключевых картах (например: 'nafany на Dust2: агрессивные entry 72% success rate')
-3. Head-to-Head последние 10 матчей (таблица с датами, счётами, картами)
-4. Winrate команд на картах (например: Ancient 65%, Mirage 58%)
-5. Форма команд (последние 5 игр с метриками KDA, gold diff)
-6. Ключевые дуэли игроков (например: 'electronic vs zywOo AWP duels 65% win')
-7. Тактические особенности (CT-hold, aggro-T, default plays)
+Матч: ${teamA} vs ${teamB}
+Игра: ${game}
+Турнир: ${tournament}, ${startTime}
+Формат: ${format}
 
-Источники: HLTV.org, Liquipedia.net, GosuGamers, VLR.gg (для Valorant), Dotabuff (для Dota 2).
+Данные из PandaScore (используй всё): ${statsJson}
 
-Верни структурированные данные.`;
+Обязательно найди и включи в отчёт (самое свежее на сегодня):
+- Полные составы с ролями, возрастом, текущим HLTV-рейтингом/KDA за 3–6 месяцев
+- Стиль игры каждого ключевого игрока на основных картах (например: «electronic на Mirage — бог AWP с 68 % headshots и 1.42 rating»)
+- Таблица личных встреч (последние 8–10 матчей)
+- Winrate команд на всех картах пула + CT/T-сайд
+- Форма команд (последние 5–7 матчей)
+- Тактика, сильные/слабые стороны, возможные пики/баны
+- Психология и сюжетные линии (тильт, реванш, драма)
+- Финальный прогноз жирным шрифтом, например **${teamA} — 73 % | ${teamB} — 27 %** и предполагаемый счёт
 
-    console.log('Step 1: Fetching extended web data via Perplexity sonar-pro...');
-    
-    const searchResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+Пиши красиво: markdown, таблицы, списки, эмодзи, драматургия. Никаких «нет данных» — всегда давай глубокий анализ.`;
+
+    console.log('Sending request to Artemox API...');
+
+    const response = await fetch('https://api.artemox.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+        'Authorization': `Bearer ${ARTEMOX_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: 'sonar-pro',
-        messages: [{ role: 'user', content: searchPrompt }],
-        max_tokens: 2500,
-        temperature: 0.2,
-        return_related_questions: false,
+        messages: [{ role: 'user', content: fullPrompt }],
+        max_tokens: 4096,
+        temperature: 0.8,
       }),
     });
 
-    if (!searchResponse.ok) {
-      const errorText = await searchResponse.text();
-      console.error('Perplexity search API error:', searchResponse.status, errorText);
-      if (searchResponse.status === 429) {
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Artemox API error:', response.status, errorText);
+      
+      if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'Превышен лимит запросов Perplexity. Попробуйте позже.' }),
+          JSON.stringify({ error: 'Превышен лимит запросов. Попробуйте позже.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      throw new Error(`Perplexity search API error: ${searchResponse.status}`);
-    }
-
-    const searchData = await searchResponse.json();
-    const extendedStatsRaw = searchData.choices?.[0]?.message?.content || '';
-    
-    console.log('Step 1 complete. Extended data length:', extendedStatsRaw.length, 'chars');
-
-    // Step 2: Deep analysis with all data
-    const analysisPrompt = `Ты — легендарный аналитик ${game} (уровень SPUNJ + Thoorin для CS2, Tsunami/Cap для Dota 2, LS/Caedrel для LoL). 
-
-Сделай **УЛЬТРА-ДЕТАЛЬНЫЙ** прогноз-отчёт на русском языке (минимум 1500 слов, НЕ укорачивай!) — убедительный, с драматургией, фактами и экспертным доверием.
-
-## Матч
-**${teamA}** vs **${teamB}**
-- Турнир: ${tournament}
-- Время: ${matchData.startTime || 'TBD'}
-- Формат: ${matchData.format || 'Bo3'}
-- Игра: ${game}
-
-## Данные из PandaScore API
-${statsJson}
-
-## Данные из веб-поиска (HLTV, Liquipedia, VLR, Dotabuff)
-${extendedStatsRaw}
-
----
-
-## СТРУКТУРА ОТЧЁТА (все пункты подробно, с примерами и аналогиями):
-
-### 1. 🎮 Составы и стиль игроков
-Для каждого игрока: роль, возраст (если известен), KDA/рейтинг (HLTV 1.15 или Dotabuff/VLR), уникальный стиль игры на картах.
-Пример: *"nafany на Dust2: агрессивные rushes на B-site с 72% success rate, но слаб в eco-раундах — всего 45% win в pistol rounds"*
-
-### 2. 📊 Head-to-Head таблица
-Последние 10 матчей между командами:
-| Дата | Турнир | Счёт | Карты | Ключевой момент |
-
-### 3. 🔥 Форма и психология команд
-- Последние 5 матчей каждой команды с результатами
-- Психологическое состояние (тильт, замены в составе, мотивация)
-- Метрики: gold diff, KDA trends, comeback %
-Пример: *"Fnatic после скандала с тренером — мотивация x2, играют на эмоциях"*
-
-### 4. 🗺️ Карты: микро и макро анализ
-- Winrate команд на каждой карте пула
-- Ключевые дуэли (например: *"electronic vs zywOo на Mirage AWP duels — 65% в пользу electronic"*)
-- Тактические особенности (CT-hold, aggro-T, default plays)
-
-### 5. 🎭 Сюжетные линии матча
-- Реванж? Драма между игроками? История противостояния?
-- MVP-предикт с обоснованием
-Пример: *"bodyy vs VINI — IGL-battle за контроль темпа игры"*
-
-### 6. 🚫 Пики/Баны и стратегии
-- Что скорее всего забанят?
-- Пермапики команд
-- Возможные сюрпризы в драфте
-Пример: *"Fnatic 100% забанят Nuke из-за слабого lurker'а TeSeS"*
-
-### 7. 🎯 ФИНАЛЬНЫЙ ПРОГНОЗ
-**${teamA}: XX%** vs **${teamB}: YY%**
-- Обоснование: H2H статистика + стиль на ключевых картах + форма
-- Предполагаемый счёт (например: 2-1)
-- Ключевые факторы победы
-
----
-
-**ВАЖНО:**
-- Пиши как профессиональный аналитик-комментатор, но с юмором и эмоциями: "это будет эпик!"
-- Используй эмодзи для визуального разделения секций
-- Markdown форматирование: **жирный** для ключевых моментов, *курсив* для примеров
-- Таблицы для H2H
-- Списки для составов и статистики
-- Не менее 1500 слов!
-- В конце ОБЯЗАТЕЛЬНО укажи проценты для каждой команды в формате "**${teamA}: XX%** | **${teamB}: YY%**"`;
-
-    console.log('Step 2: Generating deep analysis via Perplexity sonar-pro...');
-
-    const analysisResponse = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar-pro',
-        messages: [{ role: 'user', content: analysisPrompt }],
-        max_tokens: 4000,
-        temperature: 0.7,
-        return_related_questions: false,
-      }),
-    });
-
-    if (!analysisResponse.ok) {
-      const errorText = await analysisResponse.text();
-      console.error('Perplexity analysis API error:', analysisResponse.status, errorText);
-      if (analysisResponse.status === 429) {
+      if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: 'Превышен лимит запросов Perplexity. Попробуйте позже.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (analysisResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'Требуется оплата Perplexity API.' }),
+          JSON.stringify({ error: 'Требуется оплата API.' }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      throw new Error(`Perplexity analysis API error: ${analysisResponse.status}`);
+      if (response.status === 401) {
+        return new Response(
+          JSON.stringify({ error: 'Неверный API ключ Artemox.' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      throw new Error(`Artemox API error: ${response.status}`);
     }
 
-    const analysisData = await analysisResponse.json();
-    const report = analysisData.choices?.[0]?.message?.content || '';
+    const data = await response.json();
+    const report = data.choices?.[0]?.message?.content || '';
 
-    console.log('Step 2 complete. Report length:', report.length, 'chars');
+    console.log('Artemox response received. Report length:', report.length, 'chars');
 
     // Extract probabilities from the report
-    const probMatches = report.match(/(\d{1,3})%/g) || [];
+    const probMatches = report.match(/(\d{1,3})\s*%/g) || [];
     let team1Probability = 50;
     let team2Probability = 50;
 
-    // Look for patterns like "Team: XX%" or just percentages that sum close to 100
     if (probMatches.length >= 2) {
-      const probs = probMatches.map((p: string) => parseInt(p.replace('%', ''))).filter((p: number) => p > 0 && p <= 100);
+      const probs = probMatches.map((p: string) => parseInt(p.replace(/\s*%/, ''))).filter((p: number) => p > 0 && p <= 100);
       // Find two consecutive reasonable probabilities that sum close to 100
       for (let i = 0; i < probs.length - 1; i++) {
         const sum = probs[i] + probs[i + 1];
@@ -220,6 +132,13 @@ ${extendedStatsRaw}
           team2Probability = probs[i + 1];
           break;
         }
+      }
+    } else if (probMatches.length === 1) {
+      // Only one percentage found - assume it's for team A
+      const prob = parseInt(probMatches[0].replace(/\s*%/, ''));
+      if (prob > 0 && prob <= 100) {
+        team1Probability = prob;
+        team2Probability = 100 - prob;
       }
     }
 
