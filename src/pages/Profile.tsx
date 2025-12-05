@@ -9,8 +9,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePredictions, usePredictionStats } from "@/hooks/usePredictions";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { History, BarChart3, Settings, ExternalLink, LogOut, Loader2, Crown } from "lucide-react";
+import { History, BarChart3, Settings, ExternalLink, LogOut, Loader2, Crown, CheckCircle, AlertTriangle, Mail } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { toast } from "@/hooks/use-toast";
 
 const GAME_COLORS: Record<string, string> = {
   csgo: "#DE9B35",
@@ -30,8 +31,30 @@ const GAME_NAMES: Record<string, string> = {
 };
 
 export default function Profile() {
-  const { user, profile, loading: authLoading, signOut } = useAuth();
+  const { user, profile, loading: authLoading, signOut, isEmailConfirmed, resendConfirmationEmail } = useAuth();
   const navigate = useNavigate();
+  const [resendingEmail, setResendingEmail] = useState(false);
+
+  const handleResendConfirmation = async () => {
+    setResendingEmail(true);
+    try {
+      const { error } = await resendConfirmationEmail();
+      if (error) {
+        toast({
+          title: "Ошибка",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Письмо отправлено!",
+          description: "Проверьте почту для подтверждения email",
+        });
+      }
+    } finally {
+      setResendingEmail(false);
+    }
+  };
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "history");
   const [page, setPage] = useState(0);
@@ -87,6 +110,39 @@ export default function Profile() {
 
       <div className="pt-28 pb-16 px-4">
         <div className="container mx-auto max-w-5xl">
+          {/* Email Verification Banner */}
+          {!isEmailConfirmed && (
+            <Card className="p-4 mb-6 bg-amber-500/10 border-amber-500/30">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                    <AlertTriangle className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-amber-500">Email не подтверждён</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Подтвердите email для полного доступа к функциям
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
+                  onClick={handleResendConfirmation}
+                  disabled={resendingEmail}
+                >
+                  {resendingEmail ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Mail className="w-4 h-4" />
+                  )}
+                  Отправить повторно
+                </Button>
+              </div>
+            </Card>
+          )}
+
           {/* Profile Header */}
           <Card className="p-6 mb-6 bg-card border-border">
             <div className="flex items-center gap-4">
@@ -337,7 +393,20 @@ export default function Profile() {
                   <div className="space-y-4 pt-4 border-t border-border">
                     <div>
                       <label className="text-sm text-muted-foreground">Email</label>
-                      <p className="font-medium">{user.email}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{user.email}</p>
+                        {isEmailConfirmed ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-primary/20 text-primary">
+                            <CheckCircle className="w-3 h-3" />
+                            Подтверждён
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-500">
+                            <AlertTriangle className="w-3 h-3" />
+                            Не подтверждён
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <label className="text-sm text-muted-foreground">ID пользователя</label>
