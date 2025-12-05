@@ -8,6 +8,7 @@ import Matches from "./pages/Matches";
 import Match from "./pages/Match";
 import History from "./pages/History";
 import Profile from "./pages/Profile";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
 
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/match/:id" element={<Match />} />
             <Route path="/history" element={<History />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

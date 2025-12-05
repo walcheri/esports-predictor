@@ -16,11 +16,13 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  isEmailConfirmed: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  resendConfirmationEmail: () => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -64,6 +66,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(profileData);
     }
   };
+
+  // Check if email is confirmed
+  const isEmailConfirmed = user?.email_confirmed_at != null;
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -138,6 +143,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(null);
   };
 
+  const resendConfirmationEmail = async () => {
+    if (!user?.email) {
+      return { error: new Error("No email found") };
+    }
+
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: user.email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+      },
+    });
+    return { error };
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -145,11 +165,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         session,
         profile,
         loading,
+        isEmailConfirmed,
         signIn,
         signUp,
         signInWithGoogle,
         signOut,
         refreshProfile,
+        resendConfirmationEmail,
       }}
     >
       {children}
