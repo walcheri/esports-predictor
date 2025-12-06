@@ -4,7 +4,6 @@ import { Header } from "@/components/Header";
 import { Gamepad2, Sword, Trophy, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import logo from "@/assets/logo.png";
 
 const games = [
   {
@@ -91,8 +90,7 @@ const Index = () => {
       {/* Hero Section */}
       <section className="pt-32 pb-16 px-4">
         <div className="container mx-auto text-center space-y-6">
-          <img src={logo} alt="Esports Predictor" className="h-12 md:h-16 mx-auto" />
-          <h1 className="text-4xl md:text-6xl font-black">
+          <h1 className="text-5xl md:text-7xl font-black">
             Прогнозируй матчи{" "}
             <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
               с ИИ
