@@ -9,7 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePredictions, usePredictionStats } from "@/hooks/usePredictions";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { History, BarChart3, Settings, ExternalLink, LogOut, Loader2, Crown, CheckCircle, AlertTriangle, Mail } from "lucide-react";
+import { History, BarChart3, Settings, ExternalLink, LogOut, Loader2, CheckCircle, AlertTriangle, Mail } from "lucide-react";
+import { PremiumButton } from "@/components/PremiumButton";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { toast } from "@/hooks/use-toast";
 
@@ -164,10 +165,7 @@ export default function Profile() {
                 </p>
               </div>
               <div className="hidden md:block">
-                <Button variant="outline" className="gap-2 border-primary/50 text-primary hover:bg-primary/10">
-                  <Crown className="w-4 h-4" />
-                  Freemium
-                </Button>
+                <PremiumButton />
               </div>
             </div>
           </Card>
@@ -415,20 +413,7 @@ export default function Profile() {
                   </div>
 
                   {/* Premium Banner */}
-                  <Card className="p-4 bg-gradient-to-r from-primary/20 to-primary/5 border-primary/30">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-bold flex items-center gap-2">
-                          <Crown className="w-5 h-5 text-primary" />
-                          Freemium план
-                        </h3>
-                        <p className="text-sm text-muted-foreground">5 бесплатных прогнозов в сутки</p>
-                      </div>
-                      <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                        Купить Premium
-                      </Button>
-                    </div>
-                  </Card>
+                  <PremiumButton variant="profile" />
 
                   {/* Sign Out */}
                   <div className="pt-4 border-t border-border">
