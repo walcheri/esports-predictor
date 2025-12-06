@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { UserMenu } from "./UserMenu";
+import { PremiumButton } from "./PremiumButton";
 
 export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -33,6 +34,7 @@ export const Header = () => {
           >
             История
           </Link>
+          <PremiumButton />
           <UserMenu />
         </nav>
 
