@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { MatchCard } from "@/components/MatchCard";
@@ -14,6 +14,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
+import { toZonedTime, format } from "date-fns-tz";
+import { startOfDay, endOfDay, addDays, isWithinInterval, parseISO } from "date-fns";
 
 const gameNames: Record<string, string> = {
   cs2: "Counter-Strike 2",
@@ -31,8 +33,9 @@ export default function Matches() {
   
   const [game, setGame] = useState<string>(gameParam);
   const [tournament, setTournament] = useState<string>(tournamentParam);
-  const [date, setDate] = useState<string>("week");
+  const [date, setDate] = useState<string>("all");
   const [status, setStatus] = useState<string>("upcoming");
+  const [allMatches, setAllMatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [matches, setMatches] = useState<any[]>([]);
   const [tournaments, setTournaments] = useState<any[]>([]);
@@ -74,7 +77,55 @@ export default function Matches() {
 
   useEffect(() => {
     fetchMatches();
-  }, [game, date, status, tournament]);
+  }, [game, status, tournament]);
+
+  // Client-side date filtering with Moscow timezone
+  const filteredMatches = useMemo(() => {
+    if (date === "all") return allMatches;
+
+    const moscowTz = "Europe/Moscow";
+    const nowMoscow = toZonedTime(new Date(), moscowTz);
+    const todayStart = startOfDay(nowMoscow);
+    const todayEnd = endOfDay(nowMoscow);
+
+    return allMatches.filter((match) => {
+      if (!match.startTime) return false;
+
+      // Parse the match start time and convert to Moscow timezone
+      // startTime format from API: "02.12 в 13:30" - we need the raw begin_at
+      // Since we don't have begin_at, let's parse the formatted string
+      const dateMatch = match.startTime.match(/(\d{2})\.(\d{2}) в (\d{2}):(\d{2})/);
+      if (!dateMatch) return false;
+
+      const [, day, month, hours, minutes] = dateMatch;
+      const year = new Date().getFullYear();
+      // If the month is less than current month, it's next year
+      const currentMonth = nowMoscow.getMonth() + 1;
+      const matchYear = parseInt(month) < currentMonth ? year + 1 : year;
+      
+      const matchDate = new Date(matchYear, parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes));
+      const matchDateMoscow = toZonedTime(matchDate, moscowTz);
+
+      if (date === "today") {
+        return isWithinInterval(matchDateMoscow, { start: todayStart, end: todayEnd });
+      } else if (date === "tomorrow") {
+        const tomorrowStart = startOfDay(addDays(todayStart, 1));
+        const tomorrowEnd = endOfDay(addDays(todayStart, 1));
+        return isWithinInterval(matchDateMoscow, { start: tomorrowStart, end: tomorrowEnd });
+      } else if (date === "week") {
+        const weekEnd = endOfDay(addDays(todayStart, 7));
+        return isWithinInterval(matchDateMoscow, { start: todayStart, end: weekEnd });
+      }
+
+      return true;
+    });
+  }, [allMatches, date]);
+
+  // Update matches when filtered
+  useEffect(() => {
+    setMatches(filteredMatches);
+    setCurrentPage(1);
+  }, [filteredMatches]);
 
   const fetchTournaments = async () => {
     if (!game || game === "all") {
@@ -105,7 +156,7 @@ export default function Matches() {
       const { data, error } = await supabase.functions.invoke('fetch-matches', {
         body: { 
           game, 
-          date, 
+          date: "week", // Always fetch week data, filter client-side
           status,
           leagueId: tournament !== "all" ? tournament : null,
         },
@@ -114,14 +165,14 @@ export default function Matches() {
       if (error) {
         console.error('Error fetching matches:', error);
         toast.error('Не удалось загрузить матчи');
-        setMatches([]);
+        setAllMatches([]);
       } else {
-        setMatches(data?.matches || []);
+        setAllMatches(data?.matches || []);
       }
     } catch (error) {
       console.error('Error:', error);
       toast.error('Ошибка при загрузке матчей');
-      setMatches([]);
+      setAllMatches([]);
     } finally {
       setIsLoading(false);
     }
@@ -197,14 +248,15 @@ export default function Matches() {
               </SelectContent>
             </Select>
 
-            <Select value={date} onValueChange={setDate}>
+            <Select value={date} onValueChange={(value) => { setDate(value); setCurrentPage(1); }}>
               <SelectTrigger>
                 <SelectValue placeholder="Дата" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="week">7 дней</SelectItem>
+                <SelectItem value="all">Все предстоящие</SelectItem>
                 <SelectItem value="today">Сегодня</SelectItem>
                 <SelectItem value="tomorrow">Завтра</SelectItem>
+                <SelectItem value="week">7 дней</SelectItem>
               </SelectContent>
             </Select>
 
@@ -243,10 +295,10 @@ export default function Matches() {
                 <div className="text-center py-16">
                   <div className="max-w-md mx-auto">
                     <p className="text-xl text-muted-foreground mb-2">
-                      Матчи скоро появятся
+                      Нет матчей на выбранную дату
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Попробуйте изменить фильтры или выбрать другую игру
+                      Попробуйте другой фильтр или выберите другую игру
                     </p>
                   </div>
                 </div>
