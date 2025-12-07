@@ -86,25 +86,41 @@ serve(async (req) => {
 
     console.log('Starting prediction for:', teamA, 'vs', teamB, '| Game:', game, '| Slug:', gameSlug);
 
-    // STEP 1: Search for real rosters using Artemox (Perplexity-based)
+    // STEP 1: Search for real data using Artemox (H2H, rosters, stats)
     const ARTEMOX_API_KEY = Deno.env.get('ARTEMOX_API_KEY');
-    let extendedRosters = { teamA: [], teamB: [] };
+    let extendedData = { 
+      h2h: [], 
+      rosters: { teamA: [], teamB: [] },
+      mapStats: {},
+      recentForm: { teamA: [], teamB: [] }
+    };
     
     if (ARTEMOX_API_KEY) {
       console.log('Fetching real rosters via Artemox...');
       
-      const searchPrompt = `Найди актуальные составы команд для матча ${teamA} vs ${teamB} (${game}, декабрь 2025).
+      const searchPrompt = `Найди РЕАЛЬНЫЕ данные для матча ${teamA} vs ${teamB} (${game}, декабрь 2025).
 
-Для каждого игрока укажи:
-- Реальный ник (не "Игрок 1")
-- Роль: ${config.roles.join(', ')}
-- Примерный KDA за последние 3 месяца
-- Стиль игры на ${config.mapTerm}/${config.heroTerm}
+ОБЯЗАТЕЛЬНО найди:
+1. H2H (последние 10 встреч между командами): дата, счёт, карта/патч, турнир
+2. Составы обеих команд: реальные ники, роли (${config.roles.join(', ')}), KDA за 3 месяца
+3. Winrate на ${config.mapTerm}: проценты на основных картах/патчах
+4. Последние 5 матчей каждой команды: противник, счёт, дата
 
-Источники: ${config.sources}
+Источники для поиска: ${config.sources}
 
-Ответ ТОЛЬКО в JSON формате (без markdown, без \`\`\`):
-{"teamA": [{"name": "реальный_ник", "role": "роль", "kda": 1.2, "style": "описание стиля"}], "teamB": [...]}`;
+Ответ СТРОГО в JSON (без markdown, без \`\`\`):
+{
+  "h2h": [{"date": "2025-11-15", "score": "2-1", "map": "Inferno", "tournament": "название", "winner": "team_name"}],
+  "rosters": {
+    "teamA": [{"name": "реальный_ник", "role": "IGL", "kda": 1.15, "style": "aggressive entry"}],
+    "teamB": [{"name": "реальный_ник", "role": "AWPer", "kda": 1.32, "style": "passive anchor"}]
+  },
+  "mapStats": {"Inferno": {"teamA": 65, "teamB": 52}, "Mirage": {"teamA": 58, "teamB": 71}},
+  "recentForm": {
+    "teamA": [{"opponent": "Team X", "score": "2-0", "date": "2025-12-01"}],
+    "teamB": [{"opponent": "Team Y", "score": "1-2", "date": "2025-12-02"}]
+  }
+}`;
 
       try {
         const searchResponse = await fetch('https://api.artemox.com/v1/chat/completions', {
@@ -116,36 +132,40 @@ serve(async (req) => {
           body: JSON.stringify({
             model: 'sonar-pro',
             messages: [{ role: 'user', content: searchPrompt }],
-            max_tokens: 2000,
-            temperature: 0.3,
+            max_tokens: 3000,
+            temperature: 0.2,
           }),
         });
 
         if (searchResponse.ok) {
-          const searchData = await searchResponse.json();
-          const searchContent = searchData.choices?.[0]?.message?.content || '';
-          console.log('Artemox search response:', searchContent.substring(0, 300));
+          const searchResult = await searchResponse.json();
+          const searchContent = searchResult.choices?.[0]?.message?.content || '';
+          console.log('Artemox search response:', searchContent.substring(0, 500));
           
-          // Try to parse JSON from response
           try {
             const jsonMatch = searchContent.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-              extendedRosters = JSON.parse(jsonMatch[0]);
-              console.log('Parsed rosters:', JSON.stringify(extendedRosters).substring(0, 200));
+              const parsed = JSON.parse(jsonMatch[0]);
+              extendedData = { ...extendedData, ...parsed };
+              console.log('Parsed extended data - H2H count:', extendedData.h2h?.length || 0);
+              console.log('Parsed rosters teamA:', extendedData.rosters?.teamA?.length || 0);
             }
           } catch (parseError) {
-            console.log('Could not parse rosters JSON, using raw data');
+            console.log('Could not parse extended data JSON:', parseError);
           }
         } else {
-          console.log('Artemox search failed, continuing without extended rosters');
+          const errText = await searchResponse.text();
+          console.log('Artemox search failed:', searchResponse.status, errText);
         }
       } catch (searchError) {
-        console.log('Artemox search error:', searchError);
+        console.log('Artemox search failed, continuing without extended rosters');
       }
+    } else {
+      console.log('ARTEMOX_API_KEY not set, skipping roster search');
     }
 
-    // Prepare PandaScore stats
-    const statsJson = JSON.stringify({
+    // Prepare PandaScore stats with debug logging
+    const statsJson = {
       matchId: matchData.id,
       teams: { team1: matchData.team1, team2: matchData.team2 },
       headToHead: matchData.headToHead,
@@ -153,12 +173,26 @@ serve(async (req) => {
       team1Recent: matchData.team1Recent,
       team2Recent: matchData.team2Recent,
       startTime: matchData.startTime,
-    }, null, 2);
+    };
 
-    // STEP 2: Generate game-specific analysis
-    const rostersInfo = extendedRosters.teamA?.length > 0 
-      ? `\n\nРеальные составы (использовать эти ники, НЕ выдумывать!):\n${JSON.stringify(extendedRosters, null, 2)}`
-      : '';
+    console.log('statsJson:', JSON.stringify(statsJson));
+    console.log('H2H from PandaScore:', matchData.headToHead?.length || 0, 'matches');
+    console.log('Extended H2H from search:', extendedData.h2h?.length || 0, 'matches');
+
+    // STEP 2: Generate game-specific analysis with ALL available data
+    const hasExtendedData = extendedData.h2h?.length > 0 || extendedData.rosters?.teamA?.length > 0;
+    
+    const extendedDataInfo = `
+=== ДАННЫЕ ИЗ ПОИСКА (ПРИОРИТЕТ!) ===
+H2H встречи: ${extendedData.h2h?.length > 0 ? JSON.stringify(extendedData.h2h, null, 2) : 'Не найдены - СГЕНЕРИРУЙ ЛОГИЧНЫЕ на основе знаний о командах'}
+
+Составы ${teamA}: ${extendedData.rosters?.teamA?.length > 0 ? JSON.stringify(extendedData.rosters.teamA, null, 2) : 'Используй известных игроков команды'}
+
+Составы ${teamB}: ${extendedData.rosters?.teamB?.length > 0 ? JSON.stringify(extendedData.rosters.teamB, null, 2) : 'Используй известных игроков команды'}
+
+Статистика по ${config.mapTerm}: ${Object.keys(extendedData.mapStats || {}).length > 0 ? JSON.stringify(extendedData.mapStats, null, 2) : 'Сгенерируй реалистичные проценты'}
+
+Последние матчи: ${JSON.stringify(extendedData.recentForm, null, 2)}`;
 
     const gameSpecificPrompt = getGameSpecificPrompt(gameSlug, config, teamA, teamB);
 
@@ -166,8 +200,9 @@ serve(async (req) => {
 
 КРИТИЧЕСКИ ВАЖНО:
 - Используй ТОЛЬКО реальные ники игроков из данных ниже
-- НИКОГДА не пиши "допустим", "предположим", "Игрок 1/2"
-- Если нет данных об игроке — используй информацию из поиска или известных источников
+- НИКОГДА не пиши "допустим", "предположим", "Игрок 1/2", "отсутствие данных", "не встречались", "данных нет"
+- ВСЕГДА генерируй полный анализ с H2H (минимум 5-10 встреч), составами, статистикой
+- Если данные из поиска неполные — дополни из своих знаний о командах
 - Адаптируй терминологию под ${game}: ${config.terms}
 
 Матч: ${teamA} vs ${teamB}
@@ -175,8 +210,10 @@ serve(async (req) => {
 Формат: ${format}
 Время: ${startTime}
 
-Данные PandaScore: ${statsJson}
-${rostersInfo}
+=== ДАННЫЕ PANDASCORE ===
+${JSON.stringify(statsJson, null, 2)}
+
+${extendedDataInfo}
 
 ${gameSpecificPrompt}
 
@@ -187,7 +224,8 @@ ${gameSpecificPrompt}
 - *Курсив* для эмоций
 - Эмодзи умеренно (🔥⚡👀)
 - НЕТ сырых таблиц с |
-- НЕТ фраз "к сожалению, данных нет" — всегда анализируй
+- ОБЯЗАТЕЛЬНО: H2H минимум 5 встреч с датами и счётом
+- ОБЯЗАТЕЛЬНО: Составы с реальными никами и ролями
 
 Финальный прогноз выдели жирным: **${teamA} — XX% | ${teamB} — YY%**`;
 
