@@ -98,7 +98,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-chat:free',
+        model: 'deepseek/deepseek-chat',
         messages: [{ role: 'user', content: fullPrompt }],
         max_tokens: 4000,
         temperature: 0.8,
