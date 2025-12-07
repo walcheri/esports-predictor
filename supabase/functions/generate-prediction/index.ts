@@ -18,12 +18,12 @@ serve(async (req) => {
       throw new Error('Match data is required');
     }
 
-    const ARTEMOX_API_KEY = Deno.env.get('ARTEMOX_API_KEY');
+    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
     
-    if (!ARTEMOX_API_KEY) {
-      console.error('ARTEMOX_API_KEY not configured');
+    if (!OPENROUTER_API_KEY) {
+      console.error('OPENROUTER_API_KEY not configured');
       return new Response(
-        JSON.stringify({ error: 'Artemox API key not configured' }),
+        JSON.stringify({ error: 'OpenRouter API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -35,7 +35,7 @@ serve(async (req) => {
     const format = matchData.format || 'Bo3';
     const startTime = matchData.startTime || 'TBD';
 
-    console.log('Starting Artemox prediction for:', teamA, 'vs', teamB);
+    console.log('Starting DeepSeek prediction for:', teamA, 'vs', teamB);
 
     // Prepare PandaScore stats JSON
     const statsJson = JSON.stringify({
@@ -57,7 +57,7 @@ serve(async (req) => {
 Структура отчёта (обязательно в таком порядке, каждый блок — отдельный заголовок второго уровня):
 
 ## Составы команд и ключевые игроки
-(по 4–6 абзацев на команду: роль, возраст, текущий рейтинг, стиль на картах, яркие фишки)
+(по 4–6 абзацев на команду: роль, возраст, текущий рейтинг, стиль на картах, яркие фишки. Например: 'nafany на Dust2: агрессивные entry 72% success rate, AWP-контроль мида')
 
 ## Личные встречи
 (просто текст: «За последние 10 матчей счёт 6:4 в пользу… Самый яркий матч — 16 января 2025, где…» — никаких таблиц-решёток!)
@@ -75,7 +75,7 @@ serve(async (req) => {
 (реванш, бывшие тиммейты, скандалы, мотивация)
 
 ## Финальный прогноз
-(одна строчка жирным в конце: **${teamA} — 68 % | ${teamB} — 32 %** + 2–3 абзаца обоснования и предполагаемый счёт)
+(одна строчка жирным в конце: **${teamA} — XX % | ${teamB} — YY %** + 2–3 абзаца обоснования и предполагаемый счёт)
 
 Стиль письма:
 - Пиши как человек, а не как бот
@@ -83,29 +83,31 @@ serve(async (req) => {
 - Используй выделения: **жирный** для имён и процентов, *курсив* для эмоций
 - Добавляй эмодзи только там, где уместно (огонь, молния, глаза)
 - Никаких «| Дата | Противник |» и прочих сырых таблиц
-- Никаких «к сожалению, данных нет» — всегда придумывай правдоподобный анализ
+- Никаких «к сожалению, данных нет» — всегда придумывай правдоподобный анализ на основе общедоступной информации
 
 Пиши так, чтобы после прочтения человек сказал: «Блин, это реально круто, сохраню в избранное».`;
 
-    console.log('Sending request to Artemox API...');
+    console.log('Sending request to OpenRouter API (DeepSeek-V3.2-Exp)...');
 
-    const response = await fetch('https://api.artemox.com/v1/chat/completions', {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${ARTEMOX_API_KEY}`,
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://esports-predictor.lovable.app',
+        'X-Title': 'Esports Predictor',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'sonar-pro',
+        model: 'deepseek/deepseek-chat-v3-0324:free',
         messages: [{ role: 'user', content: fullPrompt }],
-        max_tokens: 4096,
+        max_tokens: 4000,
         temperature: 0.8,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Artemox API error:', response.status, errorText);
+      console.error('OpenRouter API error:', response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
@@ -121,16 +123,23 @@ serve(async (req) => {
       }
       if (response.status === 401) {
         return new Response(
-          JSON.stringify({ error: 'Неверный API ключ Artemox.' }),
+          JSON.stringify({ error: 'Неверный API ключ OpenRouter.' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
-      throw new Error(`Artemox API error: ${response.status}`);
+      throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('OpenRouter response received:', JSON.stringify(data).substring(0, 500));
+    
     const rawReport = data.choices?.[0]?.message?.content || '';
+
+    if (!rawReport) {
+      console.error('Empty response from OpenRouter');
+      throw new Error('Пустой ответ от AI модели');
+    }
 
     // Post-processing: убираем остатки таблиц
     const report = rawReport
@@ -138,7 +147,7 @@ serve(async (req) => {
       .replace(/[-|]{4,}/g, '')             // убирает разделители таблиц
       .replace(/\n\s*\n\s*\n/g, '\n\n');    // убирает лишние пустые строки
 
-    console.log('Artemox response received. Report length:', report.length, 'chars');
+    console.log('DeepSeek response received. Report length:', report.length, 'chars');
 
     // Extract probabilities from the report
     const probMatches = report.match(/(\d{1,3})\s*%/g) || [];
