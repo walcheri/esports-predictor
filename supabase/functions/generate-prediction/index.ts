@@ -87,7 +87,7 @@ serve(async (req) => {
 
 Пиши так, чтобы после прочтения человек сказал: «Блин, это реально круто, сохраню в избранное».`;
 
-    console.log('Sending request to OpenRouter API (DeepSeek-V3.2-Exp)...');
+    console.log('Sending request to OpenRouter API (DeepSeek V3)...');
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -98,7 +98,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-chat-v3-0324:free',
+        model: 'deepseek/deepseek-chat:free',
         messages: [{ role: 'user', content: fullPrompt }],
         max_tokens: 4000,
         temperature: 0.8,
