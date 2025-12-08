@@ -98,27 +98,42 @@ serve(async (req) => {
     if (ARTEMOX_API_KEY) {
       console.log('Fetching real rosters via Artemox...');
       
-      const searchPrompt = `Найди РЕАЛЬНЫЕ данные для матча ${teamA} vs ${teamB} (${game}, декабрь 2025).
+      // Get game-specific search sources
+      const searchSources = gameSlug === 'csgo' ? 'HLTV.org' 
+        : gameSlug === 'valorant' ? 'VLR.gg' 
+        : gameSlug === 'dota2' ? 'Dotabuff.com, Liquipedia Dota 2' 
+        : 'Leaguepedia, OP.GG';
+      
+      const searchPrompt = `Найди АКТУАЛЬНЫЕ данные (ноябрь-декабрь 2025) для матча ${teamA} vs ${teamB} (${game}).
 
-ОБЯЗАТЕЛЬНО найди:
-1. H2H (последние 10 встреч между командами): дата, счёт, карта/патч, турнир
-2. Составы обеих команд: реальные ники, роли (${config.roles.join(', ')}), KDA за 3 месяца
-3. Winrate на ${config.mapTerm}: проценты на основных картах/патчах
-4. Последние 5 матчей каждой команды: противник, счёт, дата
+ИСТОЧНИКИ ДЛЯ ПОИСКА: ${searchSources}, Liquipedia
 
-Источники для поиска: ${config.sources}
+ОБЯЗАТЕЛЬНО найди и верни:
+1. СОСТАВЫ (актуальные на декабрь 2025):
+   - ${teamA}: все 5 игроков с реальными никами, ролями (${config.roles.join(', ')}), KDA за последние 3 месяца
+   - ${teamB}: все 5 игроков с реальными никами, ролями, KDA
+   
+2. H2H (последние 10 встреч между ${teamA} и ${teamB}):
+   - Дата, счёт, карта/патч, турнир, победитель
+   - Если команды не встречались - укажи пустой массив
+   
+3. WINRATE на ${config.mapTerm} (за последние 3 месяца):
+   - Для каждой основной карты/патча: процент побед каждой команды
+   
+4. ФОРМА (последние 5-7 матчей каждой команды):
+   - Противник, счёт, дата, результат
 
 Ответ СТРОГО в JSON (без markdown, без \`\`\`):
 {
-  "h2h": [{"date": "2025-11-15", "score": "2-1", "map": "Inferno", "tournament": "название", "winner": "team_name"}],
   "rosters": {
-    "teamA": [{"name": "реальный_ник", "role": "IGL", "kda": 1.15, "style": "aggressive entry"}],
-    "teamB": [{"name": "реальный_ник", "role": "AWPer", "kda": 1.32, "style": "passive anchor"}]
+    "teamA": [{"name": "реальный_ник_игрока", "role": "IGL", "kda": 1.15, "style": "aggressive caller"}],
+    "teamB": [{"name": "реальный_ник_игрока", "role": "AWPer", "kda": 1.32, "style": "passive anchor"}]
   },
+  "h2h": [{"date": "2025-11-15", "score": "2-1", "map": "Inferno", "tournament": "BLAST", "winner": "${teamA}"}],
   "mapStats": {"Inferno": {"teamA": 65, "teamB": 52}, "Mirage": {"teamA": 58, "teamB": 71}},
   "recentForm": {
-    "teamA": [{"opponent": "Team X", "score": "2-0", "date": "2025-12-01"}],
-    "teamB": [{"opponent": "Team Y", "score": "1-2", "date": "2025-12-02"}]
+    "teamA": [{"opponent": "Team X", "score": "2-0", "date": "2025-12-01", "result": "win"}],
+    "teamB": [{"opponent": "Team Y", "score": "1-2", "date": "2025-12-02", "result": "loss"}]
   }
 }`;
 
