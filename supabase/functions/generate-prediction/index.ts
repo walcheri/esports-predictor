@@ -170,10 +170,15 @@ serve(async (req) => {
           }
         } else {
           const errText = await searchResponse.text();
-          console.log('Artemox search failed:', searchResponse.status, errText);
+          // Check if it's a budget exceeded error - continue without Artemox data
+          if (errText.includes('budget') || errText.includes('Budget')) {
+            console.log('Artemox budget exceeded, continuing with PandaScore data only');
+          } else {
+            console.log('Artemox search failed:', searchResponse.status, errText);
+          }
         }
       } catch (searchError) {
-        console.log('Artemox search failed, continuing without extended rosters');
+        console.log('Artemox search error, continuing without extended data:', searchError);
       }
     } else {
       console.log('ARTEMOX_API_KEY not set, skipping roster search');
