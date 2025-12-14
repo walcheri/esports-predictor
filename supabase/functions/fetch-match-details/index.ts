@@ -6,6 +6,123 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Check if game is CS2 or Dota 2 (eligible for GRID)
+function isGRIDEligible(game: string): boolean {
+  const gameLower = game?.toLowerCase() || '';
+  return gameLower.includes('counter-strike') || 
+         gameLower.includes('cs2') || 
+         gameLower.includes('cs:go') ||
+         gameLower.includes('dota');
+}
+
+// Fetch roster data from GRID API for CS2/Dota 2
+async function fetchGRIDRosters(
+  team1Name: string, 
+  team2Name: string, 
+  game: string,
+  GRID_API_KEY: string
+): Promise<{
+  team1Players: any[];
+  team2Players: any[];
+  source: 'grid' | null;
+}> {
+  try {
+    const gridGame = game.toLowerCase().includes('dota') ? 'dota2' : 'counterstrike';
+    
+    console.log(`Fetching rosters from GRID for ${team1Name} vs ${team2Name} (${gridGame})...`);
+    
+    // Use REST API to search for teams
+    const searchTeam = async (teamName: string) => {
+      const url = `https://api.grid.gg/central-data/graphql`;
+      
+      const query = `
+        query SearchTeam($name: String!, $game: String!) {
+          teams(
+            first: 5
+            filter: {
+              name: { contains: $name }
+              gameSlug: { eq: $game }
+            }
+          ) {
+            edges {
+              node {
+                id
+                name
+                players {
+                  id
+                  nickname
+                  role
+                  firstName
+                  lastName
+                }
+              }
+            }
+          }
+        }
+      `;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': GRID_API_KEY,
+        },
+        body: JSON.stringify({
+          query,
+          variables: { name: teamName, game: gridGame }
+        }),
+      });
+      
+      if (!response.ok) {
+        console.log(`GRID team search failed for ${teamName}:`, response.status);
+        return null;
+      }
+      
+      const data = await response.json();
+      if (data.errors) {
+        console.log('GRID GraphQL errors:', data.errors);
+        return null;
+      }
+      
+      const teams = data.data?.teams?.edges || [];
+      if (teams.length > 0) {
+        return teams[0].node;
+      }
+      return null;
+    };
+    
+    // Search both teams in parallel
+    const [team1Data, team2Data] = await Promise.all([
+      searchTeam(team1Name),
+      searchTeam(team2Name),
+    ]);
+    
+    const transformPlayers = (team: any) => {
+      if (!team?.players?.length) return [];
+      return team.players.map((p: any) => ({
+        name: p.nickname || `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unknown',
+        role: p.role || 'Player',
+        image: '',
+        source: 'grid',
+      }));
+    };
+    
+    const team1Players = transformPlayers(team1Data);
+    const team2Players = transformPlayers(team2Data);
+    
+    console.log(`GRID rosters: ${team1Name} (${team1Players.length} players), ${team2Name} (${team2Players.length} players)`);
+    
+    if (team1Players.length > 0 || team2Players.length > 0) {
+      return { team1Players, team2Players, source: 'grid' };
+    }
+    
+    return { team1Players: [], team2Players: [], source: null };
+  } catch (error) {
+    console.log('Error fetching GRID rosters:', error);
+    return { team1Players: [], team2Players: [], source: null };
+  }
+}
+
 // Check if team name is incomplete/placeholder
 function isIncompleteTeamName(name: string | null | undefined): boolean {
   if (!name) return true;
@@ -114,6 +231,7 @@ serve(async (req) => {
     const { matchId } = await req.json();
     const PANDA_SCORE_TOKEN = Deno.env.get('PANDA_SCORE_TOKEN');
     const ARTEMOX_API_KEY = Deno.env.get('ARTEMOX_API_KEY');
+    const GRID_API_KEY = Deno.env.get('GRID_API_KEY');
     
     if (!PANDA_SCORE_TOKEN) {
       console.error('PANDA_SCORE_TOKEN not configured');
@@ -220,31 +338,60 @@ serve(async (req) => {
     }
 
     // Merge players from PandaScore and Artemox
-    const mergedTeam1Players = team1Players.length > 0 
-      ? team1Players.slice(0, 10).map((p: any) => ({
-          name: p.name || `${p.first_name} ${p.last_name}`.trim(),
-          role: p.role || 'Player',
-          image: p.image_url || '',
-        }))
-      : (artemoxData.team1?.players || []).map((p: any) => ({
-          name: p.name || p.nick || 'Unknown',
-          role: p.role || 'Player',
-          image: '',
-          kda: p.kda || null,
-        }));
+    // Try to get roster data from GRID for CS2/Dota 2
+    let gridRosters: { team1Players: any[]; team2Players: any[]; source: 'grid' | null } = {
+      team1Players: [],
+      team2Players: [],
+      source: null,
+    };
+    
+    if (isGRIDEligible(gameName) && GRID_API_KEY && (team1Players.length === 0 || team2Players.length === 0)) {
+      console.log(`Game ${gameName} is GRID-eligible, fetching rosters from GRID...`);
+      gridRosters = await fetchGRIDRosters(team1Name, team2Name, gameName, GRID_API_KEY);
+    }
 
-    const mergedTeam2Players = team2Players.length > 0
-      ? team2Players.slice(0, 10).map((p: any) => ({
-          name: p.name || `${p.first_name} ${p.last_name}`.trim(),
-          role: p.role || 'Player',
-          image: p.image_url || '',
-        }))
-      : (artemoxData.team2?.players || []).map((p: any) => ({
-          name: p.name || p.nick || 'Unknown',
-          role: p.role || 'Player',
-          image: '',
-          kda: p.kda || null,
-        }));
+    // Priority: GRID > PandaScore > Artemox
+    let mergedTeam1Players: any[] = [];
+    let mergedTeam2Players: any[] = [];
+    let rostersSource: 'grid' | 'pandascore' | 'artemox' | null = null;
+    
+    if (gridRosters.source === 'grid' && (gridRosters.team1Players.length > 0 || gridRosters.team2Players.length > 0)) {
+      // Use GRID rosters
+      mergedTeam1Players = gridRosters.team1Players.length > 0 ? gridRosters.team1Players : [];
+      mergedTeam2Players = gridRosters.team2Players.length > 0 ? gridRosters.team2Players : [];
+      rostersSource = 'grid';
+      console.log('Using GRID rosters');
+    } else if (team1Players.length > 0 || team2Players.length > 0) {
+      // Use PandaScore rosters
+      mergedTeam1Players = team1Players.slice(0, 10).map((p: any) => ({
+        name: p.name || `${p.first_name} ${p.last_name}`.trim(),
+        role: p.role || 'Player',
+        image: p.image_url || '',
+      }));
+      mergedTeam2Players = team2Players.slice(0, 10).map((p: any) => ({
+        name: p.name || `${p.first_name} ${p.last_name}`.trim(),
+        role: p.role || 'Player',
+        image: p.image_url || '',
+      }));
+      rostersSource = 'pandascore';
+      console.log('Using PandaScore rosters');
+    } else if (artemoxData.team1?.players || artemoxData.team2?.players) {
+      // Use Artemox rosters as fallback
+      mergedTeam1Players = (artemoxData.team1?.players || []).map((p: any) => ({
+        name: p.name || p.nick || 'Unknown',
+        role: p.role || 'Player',
+        image: '',
+        kda: p.kda || null,
+      }));
+      mergedTeam2Players = (artemoxData.team2?.players || []).map((p: any) => ({
+        name: p.name || p.nick || 'Unknown',
+        role: p.role || 'Player',
+        image: '',
+        kda: p.kda || null,
+      }));
+      rostersSource = 'artemox';
+      console.log('Using Artemox rosters');
+    }
 
     // Calculate map winrates
     const calculateMapWinrate = (teamId: number, matches: any[]) => {
@@ -320,7 +467,8 @@ serve(async (req) => {
         score: m.results?.map((r: any) => r.score).join('-') || 'N/A',
       })),
       
-      // Flag for frontend to know if data was enriched
+      // Flag for frontend to know data source
+      rostersSource,
       enrichedWithArtemox: needsFallback && (artemoxData.team1 !== null || artemoxData.team2 !== null),
     };
 
