@@ -6,6 +6,272 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Fetch matches from GRID API for CS2 and Dota 2
+async function fetchFromGRID(game: string, GRID_API_KEY: string): Promise<any[] | null> {
+  try {
+    const gridGame = game === 'cs2' ? 'cs' : 'dota2';
+    const url = `https://api.grid.gg/central-data/graphql`;
+    
+    // GraphQL query for upcoming matches
+    const query = `
+      query GetMatches($gameSlug: String!) {
+        matches(
+          first: 100
+          filter: {
+            gameSlug: $gameSlug
+            state: { in: [SCHEDULED, LIVE] }
+          }
+          orderBy: START_TIME_ASC
+        ) {
+          edges {
+            node {
+              id
+              state
+              startTime
+              teams {
+                name
+                logoUrl
+              }
+              tournament {
+                name
+              }
+              series {
+                name
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    console.log(`Fetching ${game} matches from GRID API...`);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': GRID_API_KEY,
+      },
+      body: JSON.stringify({
+        query,
+        variables: { gameSlug: gridGame }
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('GRID API error:', response.status, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (data.errors) {
+      console.error('GRID GraphQL errors:', data.errors);
+      return null;
+    }
+
+    const matches = data.data?.matches?.edges || [];
+    console.log(`Fetched ${matches.length} matches from GRID`);
+
+    // Transform to our format
+    return matches.map((edge: any) => {
+      const match = edge.node;
+      const beginAt = new Date(match.startTime);
+      const moscowTime = new Date(beginAt.getTime() + (3 * 60 * 60 * 1000));
+      
+      const day = moscowTime.getUTCDate().toString().padStart(2, '0');
+      const month = (moscowTime.getUTCMonth() + 1).toString().padStart(2, '0');
+      const hours = moscowTime.getUTCHours().toString().padStart(2, '0');
+      const minutes = moscowTime.getUTCMinutes().toString().padStart(2, '0');
+
+      const team1 = match.teams?.[0];
+      const team2 = match.teams?.[1];
+      
+      const team1Name = team1?.name;
+      const team2Name = team2?.name;
+      
+      const isQualifier = !team1Name || !team2Name || 
+                         team1Name.toLowerCase().includes('tbd') || 
+                         team2Name.toLowerCase().includes('tbd');
+
+      return {
+        id: match.id.toString(),
+        team1: {
+          name: team1Name || 'Qualifier Team 1',
+          logo: team1?.logoUrl || '',
+        },
+        team2: {
+          name: team2Name || 'Qualifier Team 2',
+          logo: team2?.logoUrl || '',
+        },
+        tournament: match.tournament?.name || match.series?.name || 'Unknown Tournament',
+        startTime: `${day}.${month} в ${hours}:${minutes}`,
+        status: match.state === 'LIVE' ? 'live' : 'upcoming',
+        game: game === 'cs2' ? 'Counter-Strike 2' : 'Dota 2',
+        isQualifier,
+        source: 'grid', // Mark as GRID data
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching from GRID:', error);
+    return null;
+  }
+}
+
+// Fetch matches from PandaScore (fallback)
+async function fetchFromPandaScore(
+  game: string | null, 
+  status: string | null, 
+  date: string | null,
+  leagueId: string | null,
+  PANDA_SCORE_TOKEN: string
+): Promise<any[]> {
+  const gameSlugMap: Record<string, string> = {
+    cs2: "csgo",
+    dota2: "dota2",
+    lol: "lol",
+    valorant: "valorant",
+    CS2: "csgo",
+    "Dota 2": "dota2",
+    LoL: "lol",
+    Valorant: "valorant",
+  };
+
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayEnd = new Date(now);
+  todayEnd.setUTCHours(23, 59, 59, 999);
+  
+  const tomorrowStart = new Date(todayEnd);
+  tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
+  tomorrowStart.setUTCHours(0, 0, 0, 0);
+  const tomorrowEnd = new Date(tomorrowStart);
+  tomorrowEnd.setUTCHours(23, 59, 59, 999);
+  
+  const weekEnd = new Date(now);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+  
+  const sevenDaysAhead = new Date(now);
+  sevenDaysAhead.setUTCDate(sevenDaysAhead.getUTCDate() + 7);
+
+  let url: string;
+  const params = new URLSearchParams();
+  
+  if (game && game !== 'all') {
+    const slug = gameSlugMap[game];
+    if (!slug) {
+      throw new Error('Invalid game selection');
+    }
+    
+    if (status === 'live') {
+      url = `https://api.pandascore.co/${slug}/matches/running`;
+    } else {
+      url = `https://api.pandascore.co/${slug}/matches/upcoming`;
+    }
+  } else {
+    url = 'https://api.pandascore.co/matches';
+    
+    if (status === 'live') {
+      params.append('filter[status]', 'running');
+    } else if (status === 'upcoming') {
+      params.append('filter[status]', 'not_started');
+    }
+  }
+  
+  if (status !== 'live' && status !== 'upcoming' && game && game !== 'all') {
+    if (date === 'today') {
+      params.append('range[begin_at]', `${todayStart.toISOString()},${todayEnd.toISOString()}`);
+    } else if (date === 'tomorrow') {
+      params.append('range[begin_at]', `${tomorrowStart.toISOString()},${tomorrowEnd.toISOString()}`);
+    } else if (date === 'week') {
+      params.append('range[begin_at]', `${now.toISOString()},${weekEnd.toISOString()}`);
+    }
+  } else if (status !== 'live' && (!game || game === 'all')) {
+    if (date === 'today') {
+      params.append('range[begin_at]', `${todayStart.toISOString()},${todayEnd.toISOString()}`);
+    } else if (date === 'tomorrow') {
+      params.append('range[begin_at]', `${tomorrowStart.toISOString()},${tomorrowEnd.toISOString()}`);
+    } else if (date === 'week') {
+      params.append('range[begin_at]', `${now.toISOString()},${weekEnd.toISOString()}`);
+    } else {
+      params.append('range[begin_at]', `${now.toISOString()},${sevenDaysAhead.toISOString()}`);
+    }
+  }
+  
+  if (leagueId && leagueId !== 'all') {
+    params.append('filter[league_id]', leagueId);
+  }
+  
+  params.append('sort', 'begin_at');
+  params.append('per_page', '200');
+  
+  if (params.toString()) {
+    url += '?' + params.toString();
+  }
+
+  console.log('Fetching matches from PandaScore:', url);
+
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${PANDA_SCORE_TOKEN}`,
+      'Accept': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('PandaScore API error:', response.status, errorText);
+    throw new Error(`PandaScore error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  console.log(`Fetched ${data.length} matches from PandaScore`);
+
+  return data
+    .filter((match: any) => {
+      const matchStatus = match.status;
+      return matchStatus === 'not_started' || matchStatus === 'running';
+    })
+    .map((match: any) => {
+      const beginAt = new Date(match.begin_at || match.scheduled_at);
+      const moscowTime = new Date(beginAt.getTime() + (3 * 60 * 60 * 1000));
+      
+      const day = moscowTime.getUTCDate().toString().padStart(2, '0');
+      const month = (moscowTime.getUTCMonth() + 1).toString().padStart(2, '0');
+      const hours = moscowTime.getUTCHours().toString().padStart(2, '0');
+      const minutes = moscowTime.getUTCMinutes().toString().padStart(2, '0');
+      
+      const team1Name = match.opponents?.[0]?.opponent?.name;
+      const team2Name = match.opponents?.[1]?.opponent?.name;
+      const team1Logo = match.opponents?.[0]?.opponent?.image_url;
+      const team2Logo = match.opponents?.[1]?.opponent?.image_url;
+      
+      const isQualifier = !team1Name || !team2Name || 
+                         team1Name.toLowerCase().includes('tbd') || 
+                         team2Name.toLowerCase().includes('tbd');
+      
+      return {
+        id: match.id.toString(),
+        team1: {
+          name: team1Name || 'Qualifier Team 1',
+          logo: team1Logo || '',
+        },
+        team2: {
+          name: team2Name || 'Qualifier Team 2',
+          logo: team2Logo || '',
+        },
+        tournament: match.league?.name || match.serie?.full_name || 'Unknown Tournament',
+        startTime: `${day}.${month} в ${hours}:${minutes}`,
+        status: match.status === 'running' ? 'live' : 'upcoming',
+        game: match.videogame?.name || 'Unknown',
+        isQualifier,
+        source: 'pandascore',
+      };
+    });
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -14,6 +280,7 @@ serve(async (req) => {
   try {
     const { game, date, status, leagueId } = await req.json();
     const PANDA_SCORE_TOKEN = Deno.env.get('PANDA_SCORE_TOKEN');
+    const GRID_API_KEY = Deno.env.get('GRID_API_KEY');
     
     if (!PANDA_SCORE_TOKEN) {
       console.error('PANDA_SCORE_TOKEN not configured');
@@ -23,179 +290,31 @@ serve(async (req) => {
       );
     }
 
-    // Map game codes/names to PandaScore videogame slugs
-    // IMPORTANT: PandaScore uses 'dota2' not 'dota-2', 'lol' not 'league-of-legends'
-    const gameSlugMap: Record<string, string> = {
-      // New canonical codes from frontend
-      cs2: "csgo",
-      dota2: "dota2",
-      lol: "lol",
-      valorant: "valorant",
-      // Backwards compatibility with older values
-      CS2: "csgo",
-      "Dota 2": "dota2",
-      LoL: "lol",
-      Valorant: "valorant",
-    };
+    let matches: any[] = [];
 
-    // Calculate time ranges
-    const now = new Date();
-    const todayStart = new Date(now);
-    todayStart.setUTCHours(0, 0, 0, 0);
-    const todayEnd = new Date(now);
-    todayEnd.setUTCHours(23, 59, 59, 999);
-    
-    const tomorrowStart = new Date(todayEnd);
-    tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
-    tomorrowStart.setUTCHours(0, 0, 0, 0);
-    const tomorrowEnd = new Date(tomorrowStart);
-    tomorrowEnd.setUTCHours(23, 59, 59, 999);
-    
-    const next48Hours = new Date(now);
-    next48Hours.setUTCHours(next48Hours.getUTCHours() + 48);
-    
-    const weekEnd = new Date(now);
-    weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
-    
-    const sevenDaysAhead = new Date(now);
-    sevenDaysAhead.setUTCDate(sevenDaysAhead.getUTCDate() + 7);
-
-    // Build PandaScore API URL based on game and status
-    let url: string;
-    const params = new URLSearchParams();
-    
-    if (game && game !== 'all') {
-      const slug = gameSlugMap[game];
-      if (!slug) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid game selection' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    // For CS2 and Dota 2, try GRID first
+    if ((game === 'cs2' || game === 'dota2') && GRID_API_KEY) {
+      console.log(`Trying GRID API for ${game}...`);
+      const gridMatches = await fetchFromGRID(game, GRID_API_KEY);
       
-      // Use game-specific endpoints - always use /matches with filters for better control
-      if (status === 'live') {
-        url = `https://api.pandascore.co/${slug}/matches/running`;
+      if (gridMatches && gridMatches.length > 0) {
+        console.log(`Using GRID data for ${game}: ${gridMatches.length} matches`);
+        matches = gridMatches;
       } else {
-        // Use base /matches endpoint with status filter for better date range support
-        url = `https://api.pandascore.co/${slug}/matches/upcoming`;
+        console.log(`GRID returned no data, falling back to PandaScore for ${game}`);
+        matches = await fetchFromPandaScore(game, status, date, leagueId, PANDA_SCORE_TOKEN);
       }
     } else {
-      // All games - use general endpoint
-      url = 'https://api.pandascore.co/matches';
-      
-      if (status === 'live') {
-        params.append('filter[status]', 'running');
-      } else if (status === 'upcoming') {
-        params.append('filter[status]', 'not_started');
-      }
-    }
-    
-    // Add time range filters based on date selection - only for non-upcoming endpoints
-    // The /upcoming endpoint already filters future matches, so we don't add date range to avoid conflicts
-    if (status !== 'live' && status !== 'upcoming' && game && game !== 'all') {
-      // For specific date filters only when using /matches endpoint
-      if (date === 'today') {
-        params.append('range[begin_at]', `${todayStart.toISOString()},${todayEnd.toISOString()}`);
-      } else if (date === 'tomorrow') {
-        params.append('range[begin_at]', `${tomorrowStart.toISOString()},${tomorrowEnd.toISOString()}`);
-      } else if (date === 'week') {
-        params.append('range[begin_at]', `${now.toISOString()},${weekEnd.toISOString()}`);
-      }
-    } else if (status !== 'live' && (!game || game === 'all')) {
-      // For "all games" view, apply date filters
-      if (date === 'today') {
-        params.append('range[begin_at]', `${todayStart.toISOString()},${todayEnd.toISOString()}`);
-      } else if (date === 'tomorrow') {
-        params.append('range[begin_at]', `${tomorrowStart.toISOString()},${tomorrowEnd.toISOString()}`);
-      } else if (date === 'week') {
-        params.append('range[begin_at]', `${now.toISOString()},${weekEnd.toISOString()}`);
-      } else {
-        params.append('range[begin_at]', `${now.toISOString()},${sevenDaysAhead.toISOString()}`);
-      }
-    }
-    
-    // Add tournament/league filter if specified
-    if (leagueId && leagueId !== 'all') {
-      params.append('filter[league_id]', leagueId);
-    }
-    
-    // Sort by begin_at ascending
-    params.append('sort', 'begin_at');
-    
-    // Request 200 matches for better coverage
-    params.append('per_page', '200');
-    
-    if (params.toString()) {
-      url += '?' + params.toString();
+      // For LoL, Valorant, or all games - use PandaScore
+      matches = await fetchFromPandaScore(game, status, date, leagueId, PANDA_SCORE_TOKEN);
     }
 
-    console.log('Fetching matches from PandaScore:', url);
-
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${PANDA_SCORE_TOKEN}`,
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('PandaScore API error:', response.status, errorText);
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch matches', details: errorText }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Apply status filter if GRID was used (GRID doesn't filter by live/upcoming as granularly)
+    if (status === 'live') {
+      matches = matches.filter(m => m.status === 'live');
+    } else if (status === 'upcoming') {
+      matches = matches.filter(m => m.status === 'upcoming');
     }
-
-    const data = await response.json();
-    console.log(`Fetched ${data.length} matches from PandaScore`);
-
-    // Transform data to our format and filter out finished matches
-    const matches = data
-      .filter((match: any) => {
-        const matchStatus = match.status;
-        // Only include not_started and running matches
-        return matchStatus === 'not_started' || matchStatus === 'running';
-      })
-      .map((match: any) => {
-        // Parse begin_at and convert to Moscow time (UTC+3)
-        const beginAt = new Date(match.begin_at || match.scheduled_at);
-        const moscowTime = new Date(beginAt.getTime() + (3 * 60 * 60 * 1000)); // Add 3 hours for UTC+3
-        
-        const day = moscowTime.getUTCDate().toString().padStart(2, '0');
-        const month = (moscowTime.getUTCMonth() + 1).toString().padStart(2, '0');
-        const hours = moscowTime.getUTCHours().toString().padStart(2, '0');
-        const minutes = moscowTime.getUTCMinutes().toString().padStart(2, '0');
-        
-        // Extract team names with proper fallbacks
-        const team1Name = match.opponents?.[0]?.opponent?.name;
-        const team2Name = match.opponents?.[1]?.opponent?.name;
-        const team1Logo = match.opponents?.[0]?.opponent?.image_url;
-        const team2Logo = match.opponents?.[1]?.opponent?.image_url;
-        
-        // Check if this is a qualifier match (TBD teams)
-        const isQualifier = !team1Name || !team2Name || 
-                           team1Name.toLowerCase().includes('tbd') || 
-                           team2Name.toLowerCase().includes('tbd');
-        
-        return {
-          id: match.id.toString(),
-          team1: {
-            name: team1Name || 'Qualifier Team 1',
-            logo: team1Logo || '',
-          },
-          team2: {
-            name: team2Name || 'Qualifier Team 2',
-            logo: team2Logo || '',
-          },
-          tournament: match.league?.name || match.serie?.full_name || 'Unknown Tournament',
-          startTime: `${day}.${month} в ${hours}:${minutes}`,
-          status: match.status === 'running' ? 'live' : 'upcoming',
-          game: match.videogame?.name || 'Unknown',
-          isQualifier,
-        };
-      });
 
     return new Response(
       JSON.stringify({ matches }),

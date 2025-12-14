@@ -412,6 +412,21 @@ export default function Profile() {
                     </div>
                   </div>
 
+                  {/* Data Sources Info */}
+                  <div className="p-4 rounded-lg bg-primary/10 border border-primary/30">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                        <span className="text-xl">🎉</span>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-primary">CS2 и Dota 2 — официальные данные GRID</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Реальные команды и логотипы даже для квалификаций
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Premium Banner */}
                   <PremiumButton variant="profile" />
 
