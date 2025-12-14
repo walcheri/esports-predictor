@@ -65,12 +65,12 @@ serve(async (req) => {
       throw new Error('Match data is required');
     }
 
-    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
-    if (!OPENROUTER_API_KEY) {
-      console.error('OPENROUTER_API_KEY not configured');
+    if (!LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY not configured');
       return new Response(
-        JSON.stringify({ error: 'OpenRouter API key not configured' }),
+        JSON.stringify({ error: 'Lovable AI API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -249,27 +249,23 @@ ${gameSpecificPrompt}
 
 Финальный прогноз выдели жирным: **${teamA} — XX% | ${teamB} — YY%**`;
 
-    console.log('Sending request to OpenRouter (DeepSeek)...');
+    console.log('Sending request to Lovable AI (Gemini)...');
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://esports-predictor.lovable.app',
-        'X-Title': 'Esports Predictor',
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-chat',
+        model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: fullPrompt }],
-        max_tokens: 4000,
-        temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenRouter API error:', response.status, errorText);
+      console.error('Lovable AI error:', response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
@@ -279,16 +275,16 @@ ${gameSpecificPrompt}
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: 'Требуется оплата API.' }),
+          JSON.stringify({ error: 'Требуется пополнение баланса Lovable AI.' }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
-      throw new Error(`OpenRouter API error: ${response.status}`);
+      throw new Error(`Lovable AI error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('OpenRouter response received:', JSON.stringify(data).substring(0, 500));
+    console.log('Lovable AI response received:', JSON.stringify(data).substring(0, 500));
     
     const rawReport = data.choices?.[0]?.message?.content || '';
 
