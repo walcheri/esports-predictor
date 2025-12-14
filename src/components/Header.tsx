@@ -20,6 +20,12 @@ export const Header = () => {
           </span>
         </Link>
 
+        {/* CS2 GRID Badge */}
+        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 border border-primary/30 rounded-full ml-3">
+          <span className="text-xs font-medium text-primary">CS2 — официальные данные</span>
+          <span className="text-sm">🎮</span>
+        </div>
+
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-8">
           <Link

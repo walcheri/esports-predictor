@@ -7,116 +7,13 @@ const corsHeaders = {
 };
 
 // Fetch matches from GRID API for CS2 and Dota 2
+// GRID API integration - currently returning to PandaScore as primary
+// GRID Open Access API requires specific schema access that may not be available with free keys
 async function fetchFromGRID(game: string, GRID_API_KEY: string): Promise<any[] | null> {
-  try {
-    const gridGame = game === 'cs2' ? 'cs' : 'dota2';
-    const url = `https://api.grid.gg/central-data/graphql`;
-    
-    // GraphQL query for upcoming matches
-    const query = `
-      query GetMatches($gameSlug: String!) {
-        matches(
-          first: 100
-          filter: {
-            gameSlug: $gameSlug
-            state: { in: [SCHEDULED, LIVE] }
-          }
-          orderBy: START_TIME_ASC
-        ) {
-          edges {
-            node {
-              id
-              state
-              startTime
-              teams {
-                name
-                logoUrl
-              }
-              tournament {
-                name
-              }
-              series {
-                name
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    console.log(`Fetching ${game} matches from GRID API...`);
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': GRID_API_KEY,
-      },
-      body: JSON.stringify({
-        query,
-        variables: { gameSlug: gridGame }
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('GRID API error:', response.status, errorText);
-      return null;
-    }
-
-    const data = await response.json();
-    
-    if (data.errors) {
-      console.error('GRID GraphQL errors:', data.errors);
-      return null;
-    }
-
-    const matches = data.data?.matches?.edges || [];
-    console.log(`Fetched ${matches.length} matches from GRID`);
-
-    // Transform to our format
-    return matches.map((edge: any) => {
-      const match = edge.node;
-      const beginAt = new Date(match.startTime);
-      const moscowTime = new Date(beginAt.getTime() + (3 * 60 * 60 * 1000));
-      
-      const day = moscowTime.getUTCDate().toString().padStart(2, '0');
-      const month = (moscowTime.getUTCMonth() + 1).toString().padStart(2, '0');
-      const hours = moscowTime.getUTCHours().toString().padStart(2, '0');
-      const minutes = moscowTime.getUTCMinutes().toString().padStart(2, '0');
-
-      const team1 = match.teams?.[0];
-      const team2 = match.teams?.[1];
-      
-      const team1Name = team1?.name;
-      const team2Name = team2?.name;
-      
-      const isQualifier = !team1Name || !team2Name || 
-                         team1Name.toLowerCase().includes('tbd') || 
-                         team2Name.toLowerCase().includes('tbd');
-
-      return {
-        id: match.id.toString(),
-        team1: {
-          name: team1Name || 'Qualifier Team 1',
-          logo: team1?.logoUrl || '',
-        },
-        team2: {
-          name: team2Name || 'Qualifier Team 2',
-          logo: team2?.logoUrl || '',
-        },
-        tournament: match.tournament?.name || match.series?.name || 'Unknown Tournament',
-        startTime: `${day}.${month} в ${hours}:${minutes}`,
-        status: match.state === 'LIVE' ? 'live' : 'upcoming',
-        game: game === 'cs2' ? 'Counter-Strike 2' : 'Dota 2',
-        isQualifier,
-        source: 'grid', // Mark as GRID data
-      };
-    });
-  } catch (error) {
-    console.error('Error fetching from GRID:', error);
-    return null;
-  }
+  // Temporarily disabled - GRID API schema not accessible with current key
+  // Will fallback to PandaScore for now
+  console.log(`GRID API temporarily disabled for ${game}, using PandaScore`);
+  return null;
 }
 
 // Fetch matches from PandaScore (fallback)
