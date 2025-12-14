@@ -293,8 +293,8 @@ ${gameSpecificPrompt}
       throw new Error('Пустой ответ от AI модели');
     }
 
-    // Post-processing
-    const report = rawReport
+    // Post-processing - clean up raw report
+    let report = rawReport
       .replace(/\|[^\n]*\|/g, '')
       .replace(/[-|]{4,}/g, '')
       .replace(/\n\s*\n\s*\n/g, '\n\n')
@@ -302,30 +302,46 @@ ${gameSpecificPrompt}
 
     console.log('Report generated. Length:', report.length, 'chars');
 
-    // Extract probabilities
-    const probMatches = report.match(/(\d{1,3})\s*%/g) || [];
-    let team1Probability = 55;
-    let team2Probability = 45;
+    // Extract probabilities - first try to find existing final prediction pattern
+    let team1Probability = 50;
+    let team2Probability = 50;
 
-    if (probMatches.length >= 2) {
-      const probs = probMatches.map((p: string) => parseInt(p.replace(/\s*%/, ''))).filter((p: number) => p > 0 && p <= 100);
-      for (let i = 0; i < probs.length - 1; i++) {
-        const sum = probs[i] + probs[i + 1];
-        if (sum >= 95 && sum <= 105) {
-          team1Probability = probs[i];
-          team2Probability = probs[i + 1];
-          break;
+    // Try to extract probabilities from the AI's final prediction
+    const finalPredictionRegex = /\*\*([^—\*]+)\s*—\s*(\d+)\s*%\s*\|\s*([^—\*]+)\s*—\s*(\d+)\s*%\*\*/;
+    const finalMatch = report.match(finalPredictionRegex);
+    
+    if (finalMatch) {
+      team1Probability = parseInt(finalMatch[2]);
+      team2Probability = parseInt(finalMatch[4]);
+      console.log('Extracted from final prediction pattern:', team1Probability, '%', team2Probability, '%');
+    } else {
+      // Fallback: find any pair of percentages that sum to ~100
+      const probMatches = report.match(/(\d{1,3})\s*%/g) || [];
+      if (probMatches.length >= 2) {
+        const probs = probMatches.map((p: string) => parseInt(p.replace(/\s*%/, ''))).filter((p: number) => p > 0 && p <= 100);
+        for (let i = 0; i < probs.length - 1; i++) {
+          const sum = probs[i] + probs[i + 1];
+          if (sum >= 95 && sum <= 105) {
+            team1Probability = probs[i];
+            team2Probability = probs[i + 1];
+            break;
+          }
         }
       }
+      console.log('Extracted from fallback pattern:', team1Probability, '%', team2Probability, '%');
     }
 
+    // Normalize to 100%
     const total = team1Probability + team2Probability;
     if (total !== 100 && total > 0) {
       team1Probability = Math.round((team1Probability / total) * 100);
       team2Probability = 100 - team1Probability;
     }
 
-    console.log('Probabilities:', team1Probability, '% vs', team2Probability, '%');
+    // Add explicit final prediction block for chart synchronization
+    report += `\n\n---\n\n**ФИНАЛЬНЫЙ ПРОГНОЗ:**\n**${teamA} — ${team1Probability}% | ${teamB} — ${team2Probability}%**`;
+
+    console.log('Final probabilities:', team1Probability, '% vs', team2Probability, '%');
     console.log('Prediction generated successfully');
 
     return new Response(
