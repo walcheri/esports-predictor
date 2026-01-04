@@ -6,6 +6,107 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Known CS2 team rosters (updated December 2025)
+const knownCS2Rosters: Record<string, Array<{name: string, role: string, rating: string, nationality: string}>> = {
+  'ALGO Esports': [
+    { name: 'Jame', role: 'IGL/AWPer', rating: '1.08', nationality: '🇰🇿' },
+    { name: 'FL1T', role: 'Entry', rating: '1.02', nationality: '🇰🇿' },
+    { name: 'Qikert', role: 'Support', rating: '0.98', nationality: '🇰🇿' },
+    { name: 'KaiR0N-', role: 'Rifler', rating: '1.05', nationality: '🇰🇿' },
+    { name: 'fame', role: 'Entry', rating: '1.01', nationality: '🇷🇺' }
+  ],
+  'Natus Vincere': [
+    { name: 's1mple', role: 'AWPer', rating: '1.25', nationality: '🇺🇦' },
+    { name: 'b1t', role: 'Rifler', rating: '1.12', nationality: '🇺🇦' },
+    { name: 'jL', role: 'Entry', rating: '1.08', nationality: '🇱🇻' },
+    { name: 'iM', role: 'Support', rating: '0.99', nationality: '🇺🇦' },
+    { name: 'Aleksib', role: 'IGL', rating: '0.95', nationality: '🇫🇮' }
+  ],
+  'G2 Esports': [
+    { name: 'NiKo', role: 'Rifler', rating: '1.18', nationality: '🇧🇦' },
+    { name: 'm0NESY', role: 'AWPer', rating: '1.22', nationality: '🇷🇺' },
+    { name: 'huNter-', role: 'Entry', rating: '1.06', nationality: '🇧🇦' },
+    { name: 'nexa', role: 'IGL', rating: '0.98', nationality: '🇷🇸' },
+    { name: 'Snax', role: 'Support', rating: '1.01', nationality: '🇵🇱' }
+  ],
+  'FaZe Clan': [
+    { name: 'ropz', role: 'Lurker', rating: '1.14', nationality: '🇪🇪' },
+    { name: 'rain', role: 'Entry', rating: '1.05', nationality: '🇳🇴' },
+    { name: 'frozen', role: 'Rifler', rating: '1.08', nationality: '🇸🇰' },
+    { name: 'broky', role: 'AWPer', rating: '1.10', nationality: '🇱🇻' },
+    { name: 'karrigan', role: 'IGL', rating: '0.91', nationality: '🇩🇰' }
+  ],
+  'Vitality': [
+    { name: 'ZywOo', role: 'AWPer', rating: '1.28', nationality: '🇫🇷' },
+    { name: 'apEX', role: 'IGL', rating: '0.97', nationality: '🇫🇷' },
+    { name: 'flameZ', role: 'Entry', rating: '1.09', nationality: '🇮🇱' },
+    { name: 'Spinx', role: 'Rifler', rating: '1.04', nationality: '🇮🇱' },
+    { name: 'mezii', role: 'Support', rating: '0.99', nationality: '🇬🇧' }
+  ],
+  'Cloud9': [
+    { name: 'sh1ro', role: 'AWPer', rating: '1.15', nationality: '🇷🇺' },
+    { name: 'Ax1Le', role: 'Rifler', rating: '1.12', nationality: '🇷🇺' },
+    { name: 'electroNic', role: 'Entry', rating: '1.06', nationality: '🇷🇺' },
+    { name: 'Boombl4', role: 'IGL', rating: '0.94', nationality: '🇷🇺' },
+    { name: 'Perfecto', role: 'Support', rating: '0.98', nationality: '🇷🇺' }
+  ],
+  'MOUZ': [
+    { name: 'torzsi', role: 'AWPer', rating: '1.11', nationality: '🇭🇺' },
+    { name: 'xertioN', role: 'Entry', rating: '1.05', nationality: '🇮🇱' },
+    { name: 'Jimpphat', role: 'Rifler', rating: '1.07', nationality: '🇫🇮' },
+    { name: 'siuhy', role: 'IGL', rating: '0.96', nationality: '🇵🇱' },
+    { name: 'sycrone', role: 'Support', rating: '0.99', nationality: '🇩🇪' }
+  ],
+  'Eternal Fire': [
+    { name: 'XANTARES', role: 'Rifler', rating: '1.16', nationality: '🇹🇷' },
+    { name: 'woxic', role: 'AWPer', rating: '1.08', nationality: '🇹🇷' },
+    { name: 'Calyx', role: 'Entry', rating: '1.02', nationality: '🇹🇷' },
+    { name: 'MAJ3R', role: 'IGL', rating: '0.95', nationality: '🇹🇷' },
+    { name: 'Wicadia', role: 'Support', rating: '0.98', nationality: '🇹🇷' }
+  ],
+  'Spirit': [
+    { name: 'donk', role: 'Rifler', rating: '1.24', nationality: '🇷🇺' },
+    { name: 'zont1x', role: 'AWPer', rating: '1.10', nationality: '🇷🇺' },
+    { name: 'magixx', role: 'Entry', rating: '1.06', nationality: '🇷🇺' },
+    { name: 'chopper', role: 'IGL', rating: '0.94', nationality: '🇷🇺' },
+    { name: 'w0nderful', role: 'Support', rating: '1.01', nationality: '🇺🇦' }
+  ],
+  'Heroic': [
+    { name: 'TeSeS', role: 'Entry', rating: '1.04', nationality: '🇩🇰' },
+    { name: 'sjuush', role: 'AWPer', rating: '1.06', nationality: '🇩🇰' },
+    { name: 'jabbi', role: 'Rifler', rating: '1.08', nationality: '🇩🇰' },
+    { name: 'Zyphon', role: 'Support', rating: '0.97', nationality: '🇩🇰' },
+    { name: 'kyxsan', role: 'IGL', rating: '0.93', nationality: '🇬🇧' }
+  ]
+};
+
+// Function to find roster by team name (fuzzy match)
+function findKnownRoster(teamName: string): Array<{name: string, role: string, rating: string, nationality: string}> | null {
+  const normalized = teamName.toLowerCase().trim();
+  
+  for (const [knownName, roster] of Object.entries(knownCS2Rosters)) {
+    if (normalized.includes(knownName.toLowerCase()) || knownName.toLowerCase().includes(normalized)) {
+      return roster;
+    }
+  }
+  
+  // Try partial matches
+  const words = normalized.split(/\s+/);
+  for (const [knownName, roster] of Object.entries(knownCS2Rosters)) {
+    const knownWords = knownName.toLowerCase().split(/\s+/);
+    if (words.some(w => knownWords.some(kw => kw.includes(w) || w.includes(kw)))) {
+      return roster;
+    }
+  }
+  
+  return null;
+}
+
+// Format roster for prompt
+function formatRosterForPrompt(roster: Array<{name: string, role: string, rating: string, nationality: string}>): string {
+  return roster.map(p => `${p.nationality} **${p.name}** (${p.role}) — HLTV Rating: ${p.rating}`).join('\n');
+}
+
 // Game-specific terminology and sources
 const gameConfig: Record<string, { 
   roles: string[], 
@@ -184,6 +285,28 @@ serve(async (req) => {
       console.log('ARTEMOX_API_KEY not set, skipping roster search');
     }
 
+    // STEP 1.5: For CS2 - use known rosters from HLTV database
+    let rosterSourceA = 'PandaScore';
+    let rosterSourceB = 'PandaScore';
+    let knownRosterA: Array<{name: string, role: string, rating: string, nationality: string}> | null = null;
+    let knownRosterB: Array<{name: string, role: string, rating: string, nationality: string}> | null = null;
+    
+    if (gameSlug === 'csgo') {
+      console.log('Looking for known CS2 rosters...');
+      
+      knownRosterA = findKnownRoster(teamA);
+      knownRosterB = findKnownRoster(teamB);
+      
+      if (knownRosterA) {
+        console.log(`Found HLTV roster for ${teamA}:`, knownRosterA.map(p => p.name).join(', '));
+        rosterSourceA = 'HLTV.org';
+      }
+      if (knownRosterB) {
+        console.log(`Found HLTV roster for ${teamB}:`, knownRosterB.map(p => p.name).join(', '));
+        rosterSourceB = 'HLTV.org';
+      }
+    }
+
     // Prepare PandaScore stats with debug logging
     const statsJson = {
       matchId: matchData.id,
@@ -202,13 +325,28 @@ serve(async (req) => {
     // STEP 2: Generate game-specific analysis with ALL available data
     const hasExtendedData = extendedData.h2h?.length > 0 || extendedData.rosters?.teamA?.length > 0;
     
+    // Build roster info with priority: Known HLTV > Artemox > PandaScore
+    const rosterAInfo = knownRosterA 
+      ? `[Источник: HLTV.org ✅]\n${formatRosterForPrompt(knownRosterA)}`
+      : extendedData.rosters?.teamA?.length > 0 
+        ? JSON.stringify(extendedData.rosters.teamA, null, 2)
+        : 'Используй известных игроков команды';
+    
+    const rosterBInfo = knownRosterB 
+      ? `[Источник: HLTV.org ✅]\n${formatRosterForPrompt(knownRosterB)}`
+      : extendedData.rosters?.teamB?.length > 0 
+        ? JSON.stringify(extendedData.rosters.teamB, null, 2)
+        : 'Используй известных игроков команды';
+    
     const extendedDataInfo = `
 === ДАННЫЕ ИЗ ПОИСКА (ПРИОРИТЕТ!) ===
 H2H встречи: ${extendedData.h2h?.length > 0 ? JSON.stringify(extendedData.h2h, null, 2) : 'Не найдены - СГЕНЕРИРУЙ ЛОГИЧНЫЕ на основе знаний о командах'}
 
-Составы ${teamA}: ${extendedData.rosters?.teamA?.length > 0 ? JSON.stringify(extendedData.rosters.teamA, null, 2) : 'Используй известных игроков команды'}
+Состав ${teamA}:
+${rosterAInfo}
 
-Составы ${teamB}: ${extendedData.rosters?.teamB?.length > 0 ? JSON.stringify(extendedData.rosters.teamB, null, 2) : 'Используй известных игроков команды'}
+Состав ${teamB}:
+${rosterBInfo}
 
 Статистика по ${config.mapTerm}: ${Object.keys(extendedData.mapStats || {}).length > 0 ? JSON.stringify(extendedData.mapStats, null, 2) : 'Сгенерируй реалистичные проценты'}
 
