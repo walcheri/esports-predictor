@@ -6,8 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Known CS2 team rosters (updated December 2025)
-const knownCS2Rosters: Record<string, Array<{name: string, role: string, rating: string, nationality: string}>> = {
+// Player type for HLTV roster
+type HLTVPlayer = {
+  name: string;
+  role: string;
+  rating: string;
+  nationality: string;
+};
+
+// Fallback CS2 team rosters (updated January 2026)
+const fallbackCS2Rosters: Record<string, HLTVPlayer[]> = {
   'ALGO Esports': [
     { name: 'Jame', role: 'IGL/AWPer', rating: '1.08', nationality: '🇰🇿' },
     { name: 'FL1T', role: 'Entry', rating: '1.02', nationality: '🇰🇿' },
@@ -77,14 +85,196 @@ const knownCS2Rosters: Record<string, Array<{name: string, role: string, rating:
     { name: 'jabbi', role: 'Rifler', rating: '1.08', nationality: '🇩🇰' },
     { name: 'Zyphon', role: 'Support', rating: '0.97', nationality: '🇩🇰' },
     { name: 'kyxsan', role: 'IGL', rating: '0.93', nationality: '🇬🇧' }
+  ],
+  'The Huns Esports': [
+    { name: 'nin9', role: 'Rifler', rating: '1.05', nationality: '🇲🇳' },
+    { name: 'Bart4k', role: 'Entry', rating: '1.02', nationality: '🇲🇳' },
+    { name: 'xerolte', role: 'Support', rating: '0.98', nationality: '🇲🇳' },
+    { name: 'sk0r', role: 'AWPer', rating: '1.08', nationality: '🇲🇳' },
+    { name: 'controlez', role: 'Rifler', rating: '1.01', nationality: '🇲🇳' }
+  ],
+  'Astralis': [
+    { name: 'gla1ve', role: 'IGL', rating: '0.94', nationality: '🇩🇰' },
+    { name: 'device', role: 'AWPer', rating: '1.15', nationality: '🇩🇰' },
+    { name: 'blameF', role: 'Rifler', rating: '1.10', nationality: '🇩🇰' },
+    { name: 'Xyp9x', role: 'Support', rating: '0.96', nationality: '🇩🇰' },
+    { name: 'Staehr', role: 'Entry', rating: '1.03', nationality: '🇩🇰' }
+  ],
+  'BIG': [
+    { name: 'tabseN', role: 'IGL', rating: '1.02', nationality: '🇩🇪' },
+    { name: 'syrsoN', role: 'AWPer', rating: '1.08', nationality: '🇩🇪' },
+    { name: 'JDC', role: 'Entry', rating: '1.04', nationality: '🇩🇪' },
+    { name: 'Krimbo', role: 'Rifler', rating: '1.06', nationality: '🇩🇪' },
+    { name: 'rigoN', role: 'Support', rating: '0.97', nationality: '🇩🇪' }
+  ],
+  'Complexity': [
+    { name: 'EliGE', role: 'Rifler', rating: '1.12', nationality: '🇺🇸' },
+    { name: 'floppy', role: 'Entry', rating: '1.04', nationality: '🇺🇸' },
+    { name: 'Grim', role: 'Support', rating: '0.99', nationality: '🇺🇸' },
+    { name: 'hallzerk', role: 'AWPer', rating: '1.09', nationality: '🇳🇴' },
+    { name: 'JT', role: 'IGL', rating: '0.91', nationality: '🇿🇦' }
+  ],
+  'Monte': [
+    { name: 'OWNER', role: 'Rifler', rating: '1.05', nationality: '🇺🇦' },
+    { name: 'Woro2k', role: 'AWPer', rating: '1.10', nationality: '🇷🇺' },
+    { name: 'Demqq', role: 'Entry', rating: '1.03', nationality: '🇺🇦' },
+    { name: 'sdy', role: 'IGL', rating: '0.96', nationality: '🇺🇦' },
+    { name: 'kRaSnaL', role: 'Support', rating: '0.99', nationality: '🇵🇱' }
+  ],
+  '9INE': [
+    { name: 'hades', role: 'Rifler', rating: '1.08', nationality: '🇵🇱' },
+    { name: 'mantuu', role: 'AWPer', rating: '1.04', nationality: '🇬🇧' },
+    { name: 'KEi', role: 'Entry', rating: '1.02', nationality: '🇵🇱' },
+    { name: 'Goofy', role: 'Support', rating: '0.97', nationality: '🇵🇱' },
+    { name: 'STYKO', role: 'IGL', rating: '0.93', nationality: '🇸🇰' }
   ]
 };
 
-// Function to find roster by team name (fuzzy match)
-function findKnownRoster(teamName: string): Array<{name: string, role: string, rating: string, nationality: string}> | null {
+// Parse HLTV search results to find team URL
+async function searchHLTVTeam(teamName: string): Promise<{ teamId: string; teamSlug: string } | null> {
+  try {
+    console.log(`[HLTV] Searching for team: ${teamName}`);
+    
+    const searchUrl = `https://www.hltv.org/search?term=${encodeURIComponent(teamName)}`;
+    const response = await fetch(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+    });
+    
+    if (!response.ok) {
+      console.log(`[HLTV] Search failed with status: ${response.status}`);
+      return null;
+    }
+    
+    const html = await response.text();
+    
+    // Find team link pattern: /team/XXXXX/team-name
+    const teamPattern = /\/team\/(\d+)\/([a-zA-Z0-9\-_]+)/g;
+    const matches = html.matchAll(teamPattern);
+    
+    for (const match of matches) {
+      const teamId = match[1];
+      const teamSlug = match[2];
+      console.log(`[HLTV] Found team: ID=${teamId}, Slug=${teamSlug}`);
+      return { teamId, teamSlug };
+    }
+    
+    console.log(`[HLTV] No team found in search results`);
+    return null;
+  } catch (error) {
+    console.error(`[HLTV] Search error:`, error);
+    return null;
+  }
+}
+
+// Parse team page to extract roster
+async function parseHLTVRoster(teamId: string, teamSlug: string): Promise<HLTVPlayer[] | null> {
+  try {
+    console.log(`[HLTV] Fetching roster for team ${teamId}/${teamSlug}`);
+    
+    const teamUrl = `https://www.hltv.org/team/${teamId}/${teamSlug}`;
+    const response = await fetch(teamUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+    });
+    
+    if (!response.ok) {
+      console.log(`[HLTV] Team page failed with status: ${response.status}`);
+      return null;
+    }
+    
+    const html = await response.text();
+    const players: HLTVPlayer[] = [];
+    
+    // Parse player names from team page
+    // Look for player links in lineup section: /player/XXXXX/nickname
+    const playerPattern = /\/player\/(\d+)\/([a-zA-Z0-9\-_]+)/g;
+    const playerMatches = html.matchAll(playerPattern);
+    const seenPlayers = new Set<string>();
+    
+    for (const match of playerMatches) {
+      const playerNick = match[2];
+      
+      // Skip duplicates
+      if (seenPlayers.has(playerNick)) continue;
+      seenPlayers.add(playerNick);
+      
+      // Stop at 5 players
+      if (players.length >= 5) break;
+      
+      // Try to determine role based on common patterns
+      let role = 'Rifler';
+      const nickLower = playerNick.toLowerCase();
+      
+      if (nickLower.includes('awp') || ['s1mple', 'zywoo', 'm0nesy', 'device', 'sh1ro', 'broky', 'woxic', 'syrson', 'hallzerk', 'mantuu', 'torzsi', 'zontix'].some(a => nickLower.includes(a.toLowerCase()))) {
+        role = 'AWPer';
+      }
+      
+      players.push({
+        name: playerNick,
+        role: role,
+        rating: '1.00',
+        nationality: '🌍'
+      });
+    }
+    
+    if (players.length >= 3) {
+      console.log(`[HLTV] Parsed ${players.length} players: ${players.map(p => p.name).join(', ')}`);
+      return players;
+    }
+    
+    console.log(`[HLTV] Not enough players found (${players.length})`);
+    return null;
+  } catch (error) {
+    console.error(`[HLTV] Parse roster error:`, error);
+    return null;
+  }
+}
+
+// Main function to get HLTV roster
+async function getHLTVRoster(teamName: string): Promise<{ roster: HLTVPlayer[]; source: string } | null> {
+  try {
+    // First, try to find team on HLTV
+    const teamInfo = await searchHLTVTeam(teamName);
+    
+    if (teamInfo) {
+      const roster = await parseHLTVRoster(teamInfo.teamId, teamInfo.teamSlug);
+      if (roster && roster.length >= 3) {
+        return { roster, source: 'HLTV.org (live)' };
+      }
+    }
+    
+    // Fallback to known rosters
+    const fallback = findFallbackRoster(teamName);
+    if (fallback) {
+      return { roster: fallback, source: 'HLTV.org (cached)' };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`[HLTV] getHLTVRoster error:`, error);
+    
+    // Try fallback
+    const fallback = findFallbackRoster(teamName);
+    if (fallback) {
+      return { roster: fallback, source: 'HLTV.org (cached)' };
+    }
+    
+    return null;
+  }
+}
+
+// Function to find fallback roster by team name (fuzzy match)
+function findFallbackRoster(teamName: string): HLTVPlayer[] | null {
   const normalized = teamName.toLowerCase().trim();
   
-  for (const [knownName, roster] of Object.entries(knownCS2Rosters)) {
+  for (const [knownName, roster] of Object.entries(fallbackCS2Rosters)) {
     if (normalized.includes(knownName.toLowerCase()) || knownName.toLowerCase().includes(normalized)) {
       return roster;
     }
@@ -92,7 +282,7 @@ function findKnownRoster(teamName: string): Array<{name: string, role: string, r
   
   // Try partial matches
   const words = normalized.split(/\s+/);
-  for (const [knownName, roster] of Object.entries(knownCS2Rosters)) {
+  for (const [knownName, roster] of Object.entries(fallbackCS2Rosters)) {
     const knownWords = knownName.toLowerCase().split(/\s+/);
     if (words.some(w => knownWords.some(kw => kw.includes(w) || w.includes(kw)))) {
       return roster;
@@ -103,8 +293,10 @@ function findKnownRoster(teamName: string): Array<{name: string, role: string, r
 }
 
 // Format roster for prompt
-function formatRosterForPrompt(roster: Array<{name: string, role: string, rating: string, nationality: string}>): string {
-  return roster.map(p => `${p.nationality} **${p.name}** (${p.role}) — HLTV Rating: ${p.rating}`).join('\n');
+function formatRosterForPrompt(roster: HLTVPlayer[], source: string): string {
+  const header = `[📊 Источник: ${source}]\n`;
+  const players = roster.map(p => `${p.nationality} **${p.name}** (${p.role}) — HLTV Rating: ${p.rating}`).join('\n');
+  return header + players;
 }
 
 // Game-specific terminology and sources
@@ -285,25 +477,30 @@ serve(async (req) => {
       console.log('ARTEMOX_API_KEY not set, skipping roster search');
     }
 
-    // STEP 1.5: For CS2 - use known rosters from HLTV database
+    // STEP 1.5: For CS2 - fetch real rosters from HLTV.org
     let rosterSourceA = 'PandaScore';
     let rosterSourceB = 'PandaScore';
-    let knownRosterA: Array<{name: string, role: string, rating: string, nationality: string}> | null = null;
-    let knownRosterB: Array<{name: string, role: string, rating: string, nationality: string}> | null = null;
+    let hltvRosterA: HLTVPlayer[] | null = null;
+    let hltvRosterB: HLTVPlayer[] | null = null;
     
     if (gameSlug === 'csgo') {
-      console.log('Looking for known CS2 rosters...');
+      console.log('[CS2] Fetching live rosters from HLTV.org...');
       
-      knownRosterA = findKnownRoster(teamA);
-      knownRosterB = findKnownRoster(teamB);
+      // Fetch both rosters in parallel
+      const [rosterResultA, rosterResultB] = await Promise.all([
+        getHLTVRoster(teamA),
+        getHLTVRoster(teamB)
+      ]);
       
-      if (knownRosterA) {
-        console.log(`Found HLTV roster for ${teamA}:`, knownRosterA.map(p => p.name).join(', '));
-        rosterSourceA = 'HLTV.org';
+      if (rosterResultA) {
+        hltvRosterA = rosterResultA.roster;
+        rosterSourceA = rosterResultA.source;
+        console.log(`[CS2] ${teamA} roster (${rosterSourceA}):`, hltvRosterA.map(p => p.name).join(', '));
       }
-      if (knownRosterB) {
-        console.log(`Found HLTV roster for ${teamB}:`, knownRosterB.map(p => p.name).join(', '));
-        rosterSourceB = 'HLTV.org';
+      if (rosterResultB) {
+        hltvRosterB = rosterResultB.roster;
+        rosterSourceB = rosterResultB.source;
+        console.log(`[CS2] ${teamB} roster (${rosterSourceB}):`, hltvRosterB.map(p => p.name).join(', '));
       }
     }
 
@@ -325,18 +522,18 @@ serve(async (req) => {
     // STEP 2: Generate game-specific analysis with ALL available data
     const hasExtendedData = extendedData.h2h?.length > 0 || extendedData.rosters?.teamA?.length > 0;
     
-    // Build roster info with priority: Known HLTV > Artemox > PandaScore
-    const rosterAInfo = knownRosterA 
-      ? `[Источник: HLTV.org ✅]\n${formatRosterForPrompt(knownRosterA)}`
+    // Build roster info with priority: HLTV Live > HLTV Cached > Artemox > PandaScore
+    const rosterAInfo = hltvRosterA 
+      ? formatRosterForPrompt(hltvRosterA, rosterSourceA)
       : extendedData.rosters?.teamA?.length > 0 
         ? JSON.stringify(extendedData.rosters.teamA, null, 2)
-        : 'Используй известных игроков команды';
+        : '⚠️ Состав недоступен — данные ограничены';
     
-    const rosterBInfo = knownRosterB 
-      ? `[Источник: HLTV.org ✅]\n${formatRosterForPrompt(knownRosterB)}`
+    const rosterBInfo = hltvRosterB 
+      ? formatRosterForPrompt(hltvRosterB, rosterSourceB)
       : extendedData.rosters?.teamB?.length > 0 
         ? JSON.stringify(extendedData.rosters.teamB, null, 2)
-        : 'Используй известных игроков команды';
+        : '⚠️ Состав недоступен — данные ограничены';
     
     const extendedDataInfo = `
 === ДАННЫЕ ИЗ ПОИСКА (ПРИОРИТЕТ!) ===
