@@ -6,298 +6,28 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Player type for HLTV roster
-type HLTVPlayer = {
+// Player type for roster data
+type PlayerInfo = {
   name: string;
   role: string;
-  rating: string;
-  nationality: string;
+  rating?: string;
+  kda?: string;
+  nationality?: string;
+  style?: string;
 };
 
-// Fallback CS2 team rosters (updated January 2026)
-const fallbackCS2Rosters: Record<string, HLTVPlayer[]> = {
-  'ALGO Esports': [
-    { name: 'Jame', role: 'IGL/AWPer', rating: '1.08', nationality: '🇰🇿' },
-    { name: 'FL1T', role: 'Entry', rating: '1.02', nationality: '🇰🇿' },
-    { name: 'Qikert', role: 'Support', rating: '0.98', nationality: '🇰🇿' },
-    { name: 'KaiR0N-', role: 'Rifler', rating: '1.05', nationality: '🇰🇿' },
-    { name: 'fame', role: 'Entry', rating: '1.01', nationality: '🇷🇺' }
-  ],
-  'Natus Vincere': [
-    { name: 's1mple', role: 'AWPer', rating: '1.25', nationality: '🇺🇦' },
-    { name: 'b1t', role: 'Rifler', rating: '1.12', nationality: '🇺🇦' },
-    { name: 'jL', role: 'Entry', rating: '1.08', nationality: '🇱🇻' },
-    { name: 'iM', role: 'Support', rating: '0.99', nationality: '🇺🇦' },
-    { name: 'Aleksib', role: 'IGL', rating: '0.95', nationality: '🇫🇮' }
-  ],
-  'G2 Esports': [
-    { name: 'NiKo', role: 'Rifler', rating: '1.18', nationality: '🇧🇦' },
-    { name: 'm0NESY', role: 'AWPer', rating: '1.22', nationality: '🇷🇺' },
-    { name: 'huNter-', role: 'Entry', rating: '1.06', nationality: '🇧🇦' },
-    { name: 'nexa', role: 'IGL', rating: '0.98', nationality: '🇷🇸' },
-    { name: 'Snax', role: 'Support', rating: '1.01', nationality: '🇵🇱' }
-  ],
-  'FaZe Clan': [
-    { name: 'ropz', role: 'Lurker', rating: '1.14', nationality: '🇪🇪' },
-    { name: 'rain', role: 'Entry', rating: '1.05', nationality: '🇳🇴' },
-    { name: 'frozen', role: 'Rifler', rating: '1.08', nationality: '🇸🇰' },
-    { name: 'broky', role: 'AWPer', rating: '1.10', nationality: '🇱🇻' },
-    { name: 'karrigan', role: 'IGL', rating: '0.91', nationality: '🇩🇰' }
-  ],
-  'Vitality': [
-    { name: 'ZywOo', role: 'AWPer', rating: '1.28', nationality: '🇫🇷' },
-    { name: 'apEX', role: 'IGL', rating: '0.97', nationality: '🇫🇷' },
-    { name: 'flameZ', role: 'Entry', rating: '1.09', nationality: '🇮🇱' },
-    { name: 'Spinx', role: 'Rifler', rating: '1.04', nationality: '🇮🇱' },
-    { name: 'mezii', role: 'Support', rating: '0.99', nationality: '🇬🇧' }
-  ],
-  'Cloud9': [
-    { name: 'sh1ro', role: 'AWPer', rating: '1.15', nationality: '🇷🇺' },
-    { name: 'Ax1Le', role: 'Rifler', rating: '1.12', nationality: '🇷🇺' },
-    { name: 'electroNic', role: 'Entry', rating: '1.06', nationality: '🇷🇺' },
-    { name: 'Boombl4', role: 'IGL', rating: '0.94', nationality: '🇷🇺' },
-    { name: 'Perfecto', role: 'Support', rating: '0.98', nationality: '🇷🇺' }
-  ],
-  'MOUZ': [
-    { name: 'torzsi', role: 'AWPer', rating: '1.11', nationality: '🇭🇺' },
-    { name: 'xertioN', role: 'Entry', rating: '1.05', nationality: '🇮🇱' },
-    { name: 'Jimpphat', role: 'Rifler', rating: '1.07', nationality: '🇫🇮' },
-    { name: 'siuhy', role: 'IGL', rating: '0.96', nationality: '🇵🇱' },
-    { name: 'sycrone', role: 'Support', rating: '0.99', nationality: '🇩🇪' }
-  ],
-  'Eternal Fire': [
-    { name: 'XANTARES', role: 'Rifler', rating: '1.16', nationality: '🇹🇷' },
-    { name: 'woxic', role: 'AWPer', rating: '1.08', nationality: '🇹🇷' },
-    { name: 'Calyx', role: 'Entry', rating: '1.02', nationality: '🇹🇷' },
-    { name: 'MAJ3R', role: 'IGL', rating: '0.95', nationality: '🇹🇷' },
-    { name: 'Wicadia', role: 'Support', rating: '0.98', nationality: '🇹🇷' }
-  ],
-  'Spirit': [
-    { name: 'donk', role: 'Rifler', rating: '1.24', nationality: '🇷🇺' },
-    { name: 'zont1x', role: 'AWPer', rating: '1.10', nationality: '🇷🇺' },
-    { name: 'magixx', role: 'Entry', rating: '1.06', nationality: '🇷🇺' },
-    { name: 'chopper', role: 'IGL', rating: '0.94', nationality: '🇷🇺' },
-    { name: 'w0nderful', role: 'Support', rating: '1.01', nationality: '🇺🇦' }
-  ],
-  'Heroic': [
-    { name: 'TeSeS', role: 'Entry', rating: '1.04', nationality: '🇩🇰' },
-    { name: 'sjuush', role: 'AWPer', rating: '1.06', nationality: '🇩🇰' },
-    { name: 'jabbi', role: 'Rifler', rating: '1.08', nationality: '🇩🇰' },
-    { name: 'Zyphon', role: 'Support', rating: '0.97', nationality: '🇩🇰' },
-    { name: 'kyxsan', role: 'IGL', rating: '0.93', nationality: '🇬🇧' }
-  ],
-  'The Huns Esports': [
-    { name: 'nin9', role: 'Rifler', rating: '1.05', nationality: '🇲🇳' },
-    { name: 'Bart4k', role: 'Entry', rating: '1.02', nationality: '🇲🇳' },
-    { name: 'xerolte', role: 'Support', rating: '0.98', nationality: '🇲🇳' },
-    { name: 'sk0r', role: 'AWPer', rating: '1.08', nationality: '🇲🇳' },
-    { name: 'controlez', role: 'Rifler', rating: '1.01', nationality: '🇲🇳' }
-  ],
-  'Astralis': [
-    { name: 'gla1ve', role: 'IGL', rating: '0.94', nationality: '🇩🇰' },
-    { name: 'device', role: 'AWPer', rating: '1.15', nationality: '🇩🇰' },
-    { name: 'blameF', role: 'Rifler', rating: '1.10', nationality: '🇩🇰' },
-    { name: 'Xyp9x', role: 'Support', rating: '0.96', nationality: '🇩🇰' },
-    { name: 'Staehr', role: 'Entry', rating: '1.03', nationality: '🇩🇰' }
-  ],
-  'BIG': [
-    { name: 'tabseN', role: 'IGL', rating: '1.02', nationality: '🇩🇪' },
-    { name: 'syrsoN', role: 'AWPer', rating: '1.08', nationality: '🇩🇪' },
-    { name: 'JDC', role: 'Entry', rating: '1.04', nationality: '🇩🇪' },
-    { name: 'Krimbo', role: 'Rifler', rating: '1.06', nationality: '🇩🇪' },
-    { name: 'rigoN', role: 'Support', rating: '0.97', nationality: '🇩🇪' }
-  ],
-  'Complexity': [
-    { name: 'EliGE', role: 'Rifler', rating: '1.12', nationality: '🇺🇸' },
-    { name: 'floppy', role: 'Entry', rating: '1.04', nationality: '🇺🇸' },
-    { name: 'Grim', role: 'Support', rating: '0.99', nationality: '🇺🇸' },
-    { name: 'hallzerk', role: 'AWPer', rating: '1.09', nationality: '🇳🇴' },
-    { name: 'JT', role: 'IGL', rating: '0.91', nationality: '🇿🇦' }
-  ],
-  'Monte': [
-    { name: 'OWNER', role: 'Rifler', rating: '1.05', nationality: '🇺🇦' },
-    { name: 'Woro2k', role: 'AWPer', rating: '1.10', nationality: '🇷🇺' },
-    { name: 'Demqq', role: 'Entry', rating: '1.03', nationality: '🇺🇦' },
-    { name: 'sdy', role: 'IGL', rating: '0.96', nationality: '🇺🇦' },
-    { name: 'kRaSnaL', role: 'Support', rating: '0.99', nationality: '🇵🇱' }
-  ],
-  '9INE': [
-    { name: 'hades', role: 'Rifler', rating: '1.08', nationality: '🇵🇱' },
-    { name: 'mantuu', role: 'AWPer', rating: '1.04', nationality: '🇬🇧' },
-    { name: 'KEi', role: 'Entry', rating: '1.02', nationality: '🇵🇱' },
-    { name: 'Goofy', role: 'Support', rating: '0.97', nationality: '🇵🇱' },
-    { name: 'STYKO', role: 'IGL', rating: '0.93', nationality: '🇸🇰' }
-  ]
+type RosterSearchResult = {
+  teamA: {
+    name: string;
+    players: PlayerInfo[];
+    source: string;
+  };
+  teamB: {
+    name: string;
+    players: PlayerInfo[];
+    source: string;
+  };
 };
-
-// Parse HLTV search results to find team URL
-async function searchHLTVTeam(teamName: string): Promise<{ teamId: string; teamSlug: string } | null> {
-  try {
-    console.log(`[HLTV] Searching for team: ${teamName}`);
-    
-    const searchUrl = `https://www.hltv.org/search?term=${encodeURIComponent(teamName)}`;
-    const response = await fetch(searchUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-      },
-    });
-    
-    if (!response.ok) {
-      console.log(`[HLTV] Search failed with status: ${response.status}`);
-      return null;
-    }
-    
-    const html = await response.text();
-    
-    // Find team link pattern: /team/XXXXX/team-name
-    const teamPattern = /\/team\/(\d+)\/([a-zA-Z0-9\-_]+)/g;
-    const matches = html.matchAll(teamPattern);
-    
-    for (const match of matches) {
-      const teamId = match[1];
-      const teamSlug = match[2];
-      console.log(`[HLTV] Found team: ID=${teamId}, Slug=${teamSlug}`);
-      return { teamId, teamSlug };
-    }
-    
-    console.log(`[HLTV] No team found in search results`);
-    return null;
-  } catch (error) {
-    console.error(`[HLTV] Search error:`, error);
-    return null;
-  }
-}
-
-// Parse team page to extract roster
-async function parseHLTVRoster(teamId: string, teamSlug: string): Promise<HLTVPlayer[] | null> {
-  try {
-    console.log(`[HLTV] Fetching roster for team ${teamId}/${teamSlug}`);
-    
-    const teamUrl = `https://www.hltv.org/team/${teamId}/${teamSlug}`;
-    const response = await fetch(teamUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-      },
-    });
-    
-    if (!response.ok) {
-      console.log(`[HLTV] Team page failed with status: ${response.status}`);
-      return null;
-    }
-    
-    const html = await response.text();
-    const players: HLTVPlayer[] = [];
-    
-    // Parse player names from team page
-    // Look for player links in lineup section: /player/XXXXX/nickname
-    const playerPattern = /\/player\/(\d+)\/([a-zA-Z0-9\-_]+)/g;
-    const playerMatches = html.matchAll(playerPattern);
-    const seenPlayers = new Set<string>();
-    
-    for (const match of playerMatches) {
-      const playerNick = match[2];
-      
-      // Skip duplicates
-      if (seenPlayers.has(playerNick)) continue;
-      seenPlayers.add(playerNick);
-      
-      // Stop at 5 players
-      if (players.length >= 5) break;
-      
-      // Try to determine role based on common patterns
-      let role = 'Rifler';
-      const nickLower = playerNick.toLowerCase();
-      
-      if (nickLower.includes('awp') || ['s1mple', 'zywoo', 'm0nesy', 'device', 'sh1ro', 'broky', 'woxic', 'syrson', 'hallzerk', 'mantuu', 'torzsi', 'zontix'].some(a => nickLower.includes(a.toLowerCase()))) {
-        role = 'AWPer';
-      }
-      
-      players.push({
-        name: playerNick,
-        role: role,
-        rating: '1.00',
-        nationality: '🌍'
-      });
-    }
-    
-    if (players.length >= 3) {
-      console.log(`[HLTV] Parsed ${players.length} players: ${players.map(p => p.name).join(', ')}`);
-      return players;
-    }
-    
-    console.log(`[HLTV] Not enough players found (${players.length})`);
-    return null;
-  } catch (error) {
-    console.error(`[HLTV] Parse roster error:`, error);
-    return null;
-  }
-}
-
-// Main function to get HLTV roster
-async function getHLTVRoster(teamName: string): Promise<{ roster: HLTVPlayer[]; source: string } | null> {
-  try {
-    // First, try to find team on HLTV
-    const teamInfo = await searchHLTVTeam(teamName);
-    
-    if (teamInfo) {
-      const roster = await parseHLTVRoster(teamInfo.teamId, teamInfo.teamSlug);
-      if (roster && roster.length >= 3) {
-        return { roster, source: 'HLTV.org (live)' };
-      }
-    }
-    
-    // Fallback to known rosters
-    const fallback = findFallbackRoster(teamName);
-    if (fallback) {
-      return { roster: fallback, source: 'HLTV.org (cached)' };
-    }
-    
-    return null;
-  } catch (error) {
-    console.error(`[HLTV] getHLTVRoster error:`, error);
-    
-    // Try fallback
-    const fallback = findFallbackRoster(teamName);
-    if (fallback) {
-      return { roster: fallback, source: 'HLTV.org (cached)' };
-    }
-    
-    return null;
-  }
-}
-
-// Function to find fallback roster by team name (fuzzy match)
-function findFallbackRoster(teamName: string): HLTVPlayer[] | null {
-  const normalized = teamName.toLowerCase().trim();
-  
-  for (const [knownName, roster] of Object.entries(fallbackCS2Rosters)) {
-    if (normalized.includes(knownName.toLowerCase()) || knownName.toLowerCase().includes(normalized)) {
-      return roster;
-    }
-  }
-  
-  // Try partial matches
-  const words = normalized.split(/\s+/);
-  for (const [knownName, roster] of Object.entries(fallbackCS2Rosters)) {
-    const knownWords = knownName.toLowerCase().split(/\s+/);
-    if (words.some(w => knownWords.some(kw => kw.includes(w) || w.includes(kw)))) {
-      return roster;
-    }
-  }
-  
-  return null;
-}
-
-// Format roster for prompt
-function formatRosterForPrompt(roster: HLTVPlayer[], source: string): string {
-  const header = `[📊 Источник: ${source}]\n`;
-  const players = roster.map(p => `${p.nationality} **${p.name}** (${p.role}) — HLTV Rating: ${p.rating}`).join('\n');
-  return header + players;
-}
 
 // Game-specific terminology and sources
 const gameConfig: Record<string, { 
@@ -346,6 +76,130 @@ function getGameSlug(game: string): string {
   return 'csgo'; // default
 }
 
+// AI-powered roster search using Lovable AI Gateway
+async function searchRostersWithAI(
+  teamA: string, 
+  teamB: string, 
+  game: string, 
+  gameSlug: string,
+  config: typeof gameConfig[string],
+  apiKey: string
+): Promise<RosterSearchResult | null> {
+  console.log(`[AI Search] Scanning internet for rosters: ${teamA} vs ${teamB} (${game})`);
+  
+  const searchPrompt = `Ты — эксперт по киберспорту. Найди АКТУАЛЬНЫЕ составы команд на январь 2026 года.
+
+ЗАДАЧА: Верни JSON с составами двух команд для игры ${game}.
+
+ИСТОЧНИКИ ДЛЯ ПОИСКА:
+${gameSlug === 'csgo' ? '- HLTV.org — основной источник для CS2\n- Liquipedia Counter-Strike' : ''}
+${gameSlug === 'valorant' ? '- VLR.gg — основной источник для Valorant\n- Liquipedia Valorant' : ''}
+${gameSlug === 'dota2' ? '- Liquipedia Dota 2 — основной источник\n- Dotabuff, OpenDota' : ''}
+${gameSlug === 'lol' ? '- Leaguepedia — основной источник для LoL\n- OP.GG, Games of Legends' : ''}
+- GosuGamers.com
+
+КОМАНДЫ:
+1. ${teamA}
+2. ${teamB}
+
+ДЛЯ КАЖДОГО ИГРОКА УКАЖИ:
+- name: реальный игровой ник (НЕ "Player1", НЕ "неизвестно")
+- role: ${config.roles.join(', ')}
+- rating: числовой рейтинг (HLTV rating для CS2, VLR rating для Valorant, KDA для Dota 2/LoL)
+- style: стиль игры (aggressive entry, passive anchor, lurker, playmaker и т.д.)
+- nationality: флаг страны эмодзи (🇷🇺 🇺🇸 🇰🇿 и т.д.)
+
+ВАЖНО:
+- Верни ТОЛЬКО JSON без markdown, без \`\`\`
+- Каждая команда должна иметь 5 игроков
+- Используй реальные данные из своих знаний о киберспорте
+- Если не знаешь точный состав — укажи последний известный
+
+Формат ответа:
+{
+  "teamA": {
+    "name": "${teamA}",
+    "players": [
+      {"name": "player_nick", "role": "IGL", "rating": "1.05", "style": "tactical caller", "nationality": "🇷🇺"}
+    ],
+    "source": "HLTV.org"
+  },
+  "teamB": {
+    "name": "${teamB}",
+    "players": [
+      {"name": "player_nick", "role": "AWPer", "rating": "1.15", "style": "aggressive sniper", "nationality": "🇺🇦"}
+    ],
+    "source": "HLTV.org"
+  }
+}`;
+
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-pro',
+        messages: [{ role: 'user', content: searchPrompt }],
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('[AI Search] Failed:', response.status, errText);
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    
+    console.log('[AI Search] Raw response:', content.substring(0, 500));
+    
+    // Extract JSON from response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('[AI Search] No JSON found in response');
+      return null;
+    }
+    
+    const parsed = JSON.parse(jsonMatch[0]) as RosterSearchResult;
+    
+    console.log(`[AI Search] Parsed ${teamA}: ${parsed.teamA?.players?.length || 0} players`);
+    console.log(`[AI Search] Parsed ${teamB}: ${parsed.teamB?.players?.length || 0} players`);
+    
+    // Validate we have players
+    if (parsed.teamA?.players?.length >= 3 && parsed.teamB?.players?.length >= 3) {
+      return parsed;
+    }
+    
+    console.log('[AI Search] Not enough players found');
+    return null;
+  } catch (error) {
+    console.error('[AI Search] Error:', error);
+    return null;
+  }
+}
+
+// Format roster for display in report
+function formatRosterForPrompt(team: { name: string; players: PlayerInfo[]; source: string }): string {
+  if (!team?.players?.length) {
+    return '⚠️ Состав недоступен (попробуйте позже)';
+  }
+  
+  const header = `[📊 Источник: ${team.source} | Январь 2026]\n`;
+  const players = team.players.map(p => {
+    const nat = p.nationality || '🌍';
+    const rating = p.rating || p.kda || 'N/A';
+    const style = p.style ? ` — ${p.style}` : '';
+    return `${nat} **${p.name}** (${p.role}) — Rating: ${rating}${style}`;
+  }).join('\n');
+  
+  return header + players;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -379,135 +233,35 @@ serve(async (req) => {
 
     console.log('Starting prediction for:', teamA, 'vs', teamB, '| Game:', game, '| Slug:', gameSlug);
 
-    // STEP 1: Search for real data using Artemox (H2H, rosters, stats)
-    const ARTEMOX_API_KEY = Deno.env.get('ARTEMOX_API_KEY');
-    let extendedData = { 
-      h2h: [], 
-      rosters: { teamA: [], teamB: [] },
-      mapStats: {},
-      recentForm: { teamA: [], teamB: [] }
-    };
+    // STEP 1: AI-powered roster search (replaces PandaScore/GRID)
+    console.log('[STEP 1] AI-powered roster search...');
     
-    if (ARTEMOX_API_KEY) {
-      console.log('Fetching real rosters via Artemox...');
-      
-      // Get game-specific search sources
-      const searchSources = gameSlug === 'csgo' ? 'HLTV.org' 
-        : gameSlug === 'valorant' ? 'VLR.gg' 
-        : gameSlug === 'dota2' ? 'Dotabuff.com, Liquipedia Dota 2' 
-        : 'Leaguepedia, OP.GG';
-      
-      const searchPrompt = `Найди АКТУАЛЬНЫЕ данные (ноябрь-декабрь 2025) для матча ${teamA} vs ${teamB} (${game}).
-
-ИСТОЧНИКИ ДЛЯ ПОИСКА: ${searchSources}, Liquipedia
-
-ОБЯЗАТЕЛЬНО найди и верни:
-1. СОСТАВЫ (актуальные на декабрь 2025):
-   - ${teamA}: все 5 игроков с реальными никами, ролями (${config.roles.join(', ')}), KDA за последние 3 месяца
-   - ${teamB}: все 5 игроков с реальными никами, ролями, KDA
-   
-2. H2H (последние 10 встреч между ${teamA} и ${teamB}):
-   - Дата, счёт, карта/патч, турнир, победитель
-   - Если команды не встречались - укажи пустой массив
-   
-3. WINRATE на ${config.mapTerm} (за последние 3 месяца):
-   - Для каждой основной карты/патча: процент побед каждой команды
-   
-4. ФОРМА (последние 5-7 матчей каждой команды):
-   - Противник, счёт, дата, результат
-
-Ответ СТРОГО в JSON (без markdown, без \`\`\`):
-{
-  "rosters": {
-    "teamA": [{"name": "реальный_ник_игрока", "role": "IGL", "kda": 1.15, "style": "aggressive caller"}],
-    "teamB": [{"name": "реальный_ник_игрока", "role": "AWPer", "kda": 1.32, "style": "passive anchor"}]
-  },
-  "h2h": [{"date": "2025-11-15", "score": "2-1", "map": "Inferno", "tournament": "BLAST", "winner": "${teamA}"}],
-  "mapStats": {"Inferno": {"teamA": 65, "teamB": 52}, "Mirage": {"teamA": 58, "teamB": 71}},
-  "recentForm": {
-    "teamA": [{"opponent": "Team X", "score": "2-0", "date": "2025-12-01", "result": "win"}],
-    "teamB": [{"opponent": "Team Y", "score": "1-2", "date": "2025-12-02", "result": "loss"}]
-  }
-}`;
-
-      try {
-        const searchResponse = await fetch('https://api.artemox.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${ARTEMOX_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'sonar-pro',
-            messages: [{ role: 'user', content: searchPrompt }],
-            max_tokens: 3000,
-            temperature: 0.2,
-          }),
-        });
-
-        if (searchResponse.ok) {
-          const searchResult = await searchResponse.json();
-          const searchContent = searchResult.choices?.[0]?.message?.content || '';
-          console.log('Artemox search response:', searchContent.substring(0, 500));
-          
-          try {
-            const jsonMatch = searchContent.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-              const parsed = JSON.parse(jsonMatch[0]);
-              extendedData = { ...extendedData, ...parsed };
-              console.log('Parsed extended data - H2H count:', extendedData.h2h?.length || 0);
-              console.log('Parsed rosters teamA:', extendedData.rosters?.teamA?.length || 0);
-            }
-          } catch (parseError) {
-            console.log('Could not parse extended data JSON:', parseError);
-          }
-        } else {
-          const errText = await searchResponse.text();
-          // Check if it's a budget exceeded error - continue without Artemox data
-          if (errText.includes('budget') || errText.includes('Budget')) {
-            console.log('Artemox budget exceeded, continuing with PandaScore data only');
-          } else {
-            console.log('Artemox search failed:', searchResponse.status, errText);
-          }
-        }
-      } catch (searchError) {
-        console.log('Artemox search error, continuing without extended data:', searchError);
-      }
-    } else {
-      console.log('ARTEMOX_API_KEY not set, skipping roster search');
+    let rosterData: RosterSearchResult | null = null;
+    
+    try {
+      rosterData = await searchRostersWithAI(teamA, teamB, game, gameSlug, config, LOVABLE_API_KEY);
+    } catch (searchError) {
+      console.error('[STEP 1] Roster search failed:', searchError);
     }
 
-    // STEP 1.5: For CS2 - fetch real rosters from HLTV.org
-    let rosterSourceA = 'PandaScore';
-    let rosterSourceB = 'PandaScore';
-    let hltvRosterA: HLTVPlayer[] | null = null;
-    let hltvRosterB: HLTVPlayer[] | null = null;
+    // Build roster info for prompt
+    const rosterAInfo = rosterData?.teamA 
+      ? formatRosterForPrompt(rosterData.teamA)
+      : '⚠️ Состав недоступен — используй свои знания о команде';
     
-    if (gameSlug === 'csgo') {
-      console.log('[CS2] Fetching live rosters from HLTV.org...');
-      
-      // Fetch both rosters in parallel
-      const [rosterResultA, rosterResultB] = await Promise.all([
-        getHLTVRoster(teamA),
-        getHLTVRoster(teamB)
-      ]);
-      
-      if (rosterResultA) {
-        hltvRosterA = rosterResultA.roster;
-        rosterSourceA = rosterResultA.source;
-        console.log(`[CS2] ${teamA} roster (${rosterSourceA}):`, hltvRosterA.map(p => p.name).join(', '));
-      }
-      if (rosterResultB) {
-        hltvRosterB = rosterResultB.roster;
-        rosterSourceB = rosterResultB.source;
-        console.log(`[CS2] ${teamB} roster (${rosterSourceB}):`, hltvRosterB.map(p => p.name).join(', '));
-      }
-    }
+    const rosterBInfo = rosterData?.teamB 
+      ? formatRosterForPrompt(rosterData.teamB)
+      : '⚠️ Состав недоступен — используй свои знания о команде';
 
-    // Prepare PandaScore stats with debug logging
+    const rosterSearchStatus = rosterData 
+      ? `✅ Составы успешно найдены через AI-сканирование (${rosterData.teamA?.source || 'internet'}, ${rosterData.teamB?.source || 'internet'})`
+      : '⚠️ AI-сканирование не дало результатов — используй свои знания';
+
+    console.log('[Roster Status]', rosterSearchStatus);
+
+    // Prepare basic match stats from PandaScore (for H2H, form, etc.)
     const statsJson = {
       matchId: matchData.id,
-      teams: { team1: matchData.team1, team2: matchData.team2 },
       headToHead: matchData.headToHead,
       mapWinrates: matchData.mapWinrates,
       team1Recent: matchData.team1Recent,
@@ -515,49 +269,18 @@ serve(async (req) => {
       startTime: matchData.startTime,
     };
 
-    console.log('statsJson:', JSON.stringify(statsJson));
     console.log('H2H from PandaScore:', matchData.headToHead?.length || 0, 'matches');
-    console.log('Extended H2H from search:', extendedData.h2h?.length || 0, 'matches');
 
-    // STEP 2: Generate game-specific analysis with ALL available data
-    const hasExtendedData = extendedData.h2h?.length > 0 || extendedData.rosters?.teamA?.length > 0;
-    
-    // Build roster info with priority: HLTV Live > HLTV Cached > Artemox > PandaScore
-    const rosterAInfo = hltvRosterA 
-      ? formatRosterForPrompt(hltvRosterA, rosterSourceA)
-      : extendedData.rosters?.teamA?.length > 0 
-        ? JSON.stringify(extendedData.rosters.teamA, null, 2)
-        : '⚠️ Состав недоступен — данные ограничены';
-    
-    const rosterBInfo = hltvRosterB 
-      ? formatRosterForPrompt(hltvRosterB, rosterSourceB)
-      : extendedData.rosters?.teamB?.length > 0 
-        ? JSON.stringify(extendedData.rosters.teamB, null, 2)
-        : '⚠️ Состав недоступен — данные ограничены';
-    
-    const extendedDataInfo = `
-=== ДАННЫЕ ИЗ ПОИСКА (ПРИОРИТЕТ!) ===
-H2H встречи: ${extendedData.h2h?.length > 0 ? JSON.stringify(extendedData.h2h, null, 2) : 'Не найдены - СГЕНЕРИРУЙ ЛОГИЧНЫЕ на основе знаний о командах'}
-
-Состав ${teamA}:
-${rosterAInfo}
-
-Состав ${teamB}:
-${rosterBInfo}
-
-Статистика по ${config.mapTerm}: ${Object.keys(extendedData.mapStats || {}).length > 0 ? JSON.stringify(extendedData.mapStats, null, 2) : 'Сгенерируй реалистичные проценты'}
-
-Последние матчи: ${JSON.stringify(extendedData.recentForm, null, 2)}`;
-
+    // STEP 2: Generate game-specific analysis with AI-scanned rosters
     const gameSpecificPrompt = getGameSpecificPrompt(gameSlug, config, teamA, teamB);
 
     const fullPrompt = `Ты — топовый русскоязычный киберспортивный аналитик по ${game} (стиль: эмоциональный, но профессиональный). 
 
 КРИТИЧЕСКИ ВАЖНО:
-- Используй ТОЛЬКО реальные ники игроков из данных ниже
-- НИКОГДА не пиши "допустим", "предположим", "Игрок 1/2", "отсутствие данных", "не встречались", "данных нет"
+- Используй СОСТАВЫ из данных ниже — они получены через AI-сканирование интернета (HLTV, Liquipedia, GosuGamers)
+- НИКОГДА не пиши "допустим", "предположим", "Игрок 1/2", "отсутствие данных", "данных нет"
 - ВСЕГДА генерируй полный анализ с H2H (минимум 5-10 встреч), составами, статистикой
-- Если данные из поиска неполные — дополни из своих знаний о командах
+- Если данные неполные — дополни из своих знаний о командах
 - Адаптируй терминологию под ${game}: ${config.terms}
 
 Матч: ${teamA} vs ${teamB}
@@ -565,10 +288,20 @@ ${rosterBInfo}
 Формат: ${format}
 Время: ${startTime}
 
-=== ДАННЫЕ PANDASCORE ===
-${JSON.stringify(statsJson, null, 2)}
+=== AI-СКАНИРОВАНИЕ СОСТАВОВ (HLTV.org, Liquipedia, GosuGamers) ===
+Статус: ${rosterSearchStatus}
 
-${extendedDataInfo}
+Состав ${teamA}:
+${rosterAInfo}
+
+Состав ${teamB}:
+${rosterBInfo}
+
+=== ДОПОЛНИТЕЛЬНЫЕ ДАННЫЕ (PandaScore) ===
+H2H встречи: ${matchData.headToHead?.length > 0 ? JSON.stringify(matchData.headToHead, null, 2) : 'Не найдены — сгенерируй на основе знаний'}
+Статистика по картам: ${matchData.mapWinrates ? JSON.stringify(matchData.mapWinrates, null, 2) : 'Сгенерируй реалистичные проценты'}
+Последние матчи ${teamA}: ${matchData.team1Recent?.length > 0 ? JSON.stringify(matchData.team1Recent, null, 2) : 'Используй знания'}
+Последние матчи ${teamB}: ${matchData.team2Recent?.length > 0 ? JSON.stringify(matchData.team2Recent, null, 2) : 'Используй знания'}
 
 ${gameSpecificPrompt}
 
@@ -580,11 +313,12 @@ ${gameSpecificPrompt}
 - Эмодзи умеренно (🔥⚡👀)
 - НЕТ сырых таблиц с |
 - ОБЯЗАТЕЛЬНО: H2H минимум 5 встреч с датами и счётом
-- ОБЯЗАТЕЛЬНО: Составы с реальными никами и ролями
+- ОБЯЗАТЕЛЬНО: Составы с реальными никами и ролями (из данных выше или твоих знаний)
+- В начале укажи: "📊 Составы сканированы с HLTV.org/Liquipedia на январь 2026"
 
 Финальный прогноз выдели жирным: **${teamA} — XX% | ${teamB} — YY%**`;
 
-    console.log('Sending request to Lovable AI (Gemini)...');
+    console.log('Sending request to Lovable AI (Gemini) for analysis...');
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -624,7 +358,7 @@ ${gameSpecificPrompt}
     const rawReport = data.choices?.[0]?.message?.content || '';
 
     if (!rawReport) {
-      console.error('Empty response from OpenRouter');
+      console.error('Empty response from AI');
       throw new Error('Пустой ответ от AI модели');
     }
 
@@ -633,15 +367,14 @@ ${gameSpecificPrompt}
       .replace(/\|[^\n]*\|/g, '')
       .replace(/[-|]{4,}/g, '')
       .replace(/\n\s*\n\s*\n/g, '\n\n')
-      .replace(/допустим|предположим|Игрок\s*\d/gi, ''); // Remove placeholder phrases
+      .replace(/допустим|предположим|Игрок\s*\d/gi, '');
 
     console.log('Report generated. Length:', report.length, 'chars');
 
-    // Extract probabilities - first try to find existing final prediction pattern
+    // Extract probabilities
     let team1Probability = 50;
     let team2Probability = 50;
 
-    // Try to extract probabilities from the AI's final prediction
     const finalPredictionRegex = /\*\*([^—\*]+)\s*—\s*(\d+)\s*%\s*\|\s*([^—\*]+)\s*—\s*(\d+)\s*%\*\*/;
     const finalMatch = report.match(finalPredictionRegex);
     
@@ -650,7 +383,6 @@ ${gameSpecificPrompt}
       team2Probability = parseInt(finalMatch[4]);
       console.log('Extracted from final prediction pattern:', team1Probability, '%', team2Probability, '%');
     } else {
-      // Fallback: find any pair of percentages that sum to ~100
       const probMatches = report.match(/(\d{1,3})\s*%/g) || [];
       if (probMatches.length >= 2) {
         const probs = probMatches.map((p: string) => parseInt(p.replace(/\s*%/, ''))).filter((p: number) => p > 0 && p <= 100);
@@ -673,7 +405,7 @@ ${gameSpecificPrompt}
       team2Probability = 100 - team1Probability;
     }
 
-    // Add explicit final prediction block for chart synchronization
+    // Add explicit final prediction block
     report += `\n\n---\n\n**ФИНАЛЬНЫЙ ПРОГНОЗ:**\n**${teamA} — ${team1Probability}% | ${teamB} — ${team2Probability}%**`;
 
     console.log('Final probabilities:', team1Probability, '% vs', team2Probability, '%');
