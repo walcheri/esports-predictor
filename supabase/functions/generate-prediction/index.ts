@@ -6,7 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Game-specific config
 const gameConfig: Record<string, { 
   roles: string[], 
   terms: string,
@@ -52,11 +51,11 @@ serve(async (req) => {
     const { matchData } = await req.json();
     if (!matchData) throw new Error('Match data is required');
 
-    const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
-    if (!DEEPSEEK_API_KEY) {
-      console.error('DEEPSEEK_API_KEY not configured');
+    const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
+    if (!GROQ_API_KEY) {
+      console.error('GROQ_API_KEY not configured');
       return new Response(
-        JSON.stringify({ error: 'DeepSeek API key not configured' }),
+        JSON.stringify({ error: 'Groq API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -70,9 +69,8 @@ serve(async (req) => {
     const format = matchData.format || 'Bo3';
     const startTime = matchData.startTime || 'TBD';
 
-    console.log('Starting DeepSeek prediction:', teamA, 'vs', teamB, '| Game:', game);
+    console.log('Starting Groq prediction:', teamA, 'vs', teamB, '| Game:', game);
 
-    // Build stats context from available data
     const h2h = matchData.headToHead?.length > 0 
       ? JSON.stringify(matchData.headToHead, null, 2) 
       : 'Нет данных — сгенерируй на основе своих знаний';
@@ -133,16 +131,16 @@ serve(async (req) => {
 - НЕТ сырых таблиц с |
 - Финальный прогноз выдели жирным: **${teamA} — XX% | ${teamB} — YY%**`;
 
-    console.log('Sending request to DeepSeek API...');
+    console.log('Sending request to Groq API...');
 
-    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'llama-3.1-70b-versatile',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -154,31 +152,30 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('DeepSeek error:', response.status, errorText);
+      console.error('Groq error:', response.status, errorText);
 
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'Превышен лимит запросов DeepSeek. Попробуйте позже.' }),
+          JSON.stringify({ error: 'Превышен лимит запросов Groq. Попробуйте позже.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       if (response.status === 402 || response.status === 401) {
         return new Response(
-          JSON.stringify({ error: 'Ошибка авторизации DeepSeek. Проверьте API ключ.' }),
+          JSON.stringify({ error: 'Ошибка авторизации Groq. Проверьте API ключ.' }),
           { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      throw new Error(`DeepSeek error: ${response.status}`);
+      throw new Error(`Groq error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('DeepSeek response received');
+    console.log('Groq response received');
 
     const rawReport = data.choices?.[0]?.message?.content || '';
-    if (!rawReport) throw new Error('Пустой ответ от DeepSeek');
+    if (!rawReport) throw new Error('Пустой ответ от Groq');
 
-    // Post-processing
     let report = rawReport
       .replace(/\|[^\n]*\|/g, '')
       .replace(/[-|]{4,}/g, '')
@@ -211,14 +208,12 @@ serve(async (req) => {
       }
     }
 
-    // Normalize
     const total = team1Probability + team2Probability;
     if (total !== 100 && total > 0) {
       team1Probability = Math.round((team1Probability / total) * 100);
       team2Probability = 100 - team1Probability;
     }
 
-    // Add final prediction block for chart sync
     report += `\n\n---\n\n**ФИНАЛЬНЫЙ ПРОГНОЗ ДЛЯ ДИАГРАММЫ:**\n**${teamA} — ${team1Probability}% | ${teamB} — ${team2Probability}%**`;
 
     console.log('Final:', team1Probability, '% vs', team2Probability, '%');
