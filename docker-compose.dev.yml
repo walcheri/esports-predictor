@@ -1,0 +1,25 @@
+# Только PostgreSQL для локальной разработки:
+#   npm run docker:db
+#   DATABASE_URL=postgresql://predict:predict@127.0.0.1:5432/predict
+
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-predict}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-predict}
+      POSTGRES_DB: ${POSTGRES_DB:-predict}
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-predict} -d ${POSTGRES_DB:-predict}"]
+      interval: 5s
+      timeout: 5s
+      retries: 8
+    restart: unless-stopped
+
+volumes:
+  pgdata_dev:

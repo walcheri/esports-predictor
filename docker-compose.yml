@@ -1,0 +1,42 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      APP_ENV: production
+      SERVE_STATIC: "true"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-predict}:${POSTGRES_PASSWORD:-predict}@db:5432/${POSTGRES_DB:-predict}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8000}
+      PANDASCORE_API_KEY: ${PANDASCORE_API_KEY}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Esports Predictor <onboarding@resend.dev>}
+      SYNC_ON_STARTUP: "true"
+      SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-15}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-predict}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-predict}
+      POSTGRES_DB: ${POSTGRES_DB:-predict}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-predict}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:

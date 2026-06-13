@@ -1,0 +1,48 @@
+---
+description: Визуальный стиль Esports Predictor — цвета, типографика, паттерны UI
+globs: src/**/*.{tsx,css}
+alwaysApply: false
+---
+
+# Esports Predictor — Design System
+
+Тёмная киберспортивная эстетика. Не менять без явного запроса пользователя.
+
+## Палитра (HSL в `src/index.css`)
+
+- Фон: `#0E0E0E` (`--background`), карточки: `#1A1A1A` (`--card`)
+- Акцент: `#00FFAA` (`--primary`) — единственный яркий цвет бренда
+- Текст: светлый foreground, вторичный — `muted-foreground` (~60% lightness)
+- Live: красный (`destructive` / `red-400`), Upcoming: акцентный зелёный
+- Квалификация: жёлтый (`yellow-400/500` с прозрачностью)
+
+## Типографика
+
+- Шрифт: **Montserrat** (`font-montserrat`)
+- Hero: `text-5xl md:text-7xl font-black`, ключевое слово — gradient text primary
+- Заголовки карточек: `font-bold`, навигация: `font-medium`
+
+## Компоненты и паттерны
+
+- **Header**: fixed, `bg-card/95 backdrop-blur-sm`, h-20, лого — квадрат с gradient primary + буква «E»
+- **Карточки**: `rounded-2xl` или `Card` с `border-border`, hover → `border-primary/50` или glow `shadow-[0_0_30px_rgba(0,255,170,0.3)]`
+- **Кнопки CTA**: primary fill, hover с glow; ghost для Premium
+- **Бейджи**: live — красный полупрозрачный, upcoming — `bg-primary/20 text-primary`
+- **Контейнер**: `container mx-auto`, max-w-6xl для сеток
+- **Отступы страниц**: `pt-32` под fixed header, `px-4`, секции `pb-16`
+- **Анимации**: `transition-all duration-300`, hover scale `hover:scale-105` на game cards, fade-in 0.3s на main/section
+
+## Игровые акценты (только на карточках дисциплин)
+
+- CS2: primary gradient; Dota2: red; LoL: blue; Valorant: red-400
+- Иконка в круге `bg-card/50 backdrop-blur-sm`, иконка `text-primary`
+
+## Markdown-отчёты (`.premium-report`)
+
+Заголовки h2 — `text-primary border-b border-primary/30`, strong — foreground, em — `text-primary/90`, таблицы с `bg-primary/20` в thead.
+
+## Запрещено
+
+- Светлая тема, смена акцентного цвета, другой шрифт
+- Пёстрые градиенты вне game cards
+- Убирать glow/hover-эффекты с интерактивных элементов
