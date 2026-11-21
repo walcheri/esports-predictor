@@ -33,7 +33,8 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleSubmit = async () => {
-    if (!email || !email.includes("@")) {
+    const normalizedEmail = email.trim();
+    if (normalizedEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       toast({
         title: "Ошибка",
         description: "Введите корректный email",
@@ -47,7 +48,7 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
       const { error } = await supabase
         .from("premium_waitlist")
         .insert({
-          email,
+          email: normalizedEmail,
           user_id: user?.id || null,
         });
 
@@ -149,6 +150,7 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
             <div className="space-y-3">
               <Input
                 type="email"
+                maxLength={254}
                 placeholder="Введите email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
