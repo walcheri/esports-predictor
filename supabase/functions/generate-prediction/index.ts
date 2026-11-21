@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { requestGroqCompletion } from './groq.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -133,21 +134,13 @@ serve(async (req) => {
 
     console.log('Sending request to Groq API...');
 
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+    const response = await requestGroqCompletion(GROQ_API_KEY, {
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
         max_tokens: 6000,
         temperature: 0.7,
-      }),
     });
 
     if (!response.ok) {
@@ -167,7 +160,12 @@ serve(async (req) => {
         );
       }
 
-      throw new Error(`Groq error: ${response.status}`);
+      return new Response(
+        JSON.stringify({ error: response.status === 404
+          ? 'В аккаунте Groq нет доступной модели для прогноза. Проверьте доступ к моделям.'
+          : 'Сервис прогнозов Groq временно недоступен. Попробуйте позже.' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const data = await response.json();
