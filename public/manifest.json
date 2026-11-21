@@ -1,0 +1,22 @@
+{
+  "name": "Esports Predictor",
+  "short_name": "Esports Predictor",
+  "description": "ИИ-прогнозы киберспортивных матчей",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0E0E0E",
+  "theme_color": "#00FFAA",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

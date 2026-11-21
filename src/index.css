@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Dark theme by default - Esports Predictor colors */
+    --background: 0 0% 5.5%; /* #0E0E0E */
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 10.2%; /* #1A1A1A */
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 10.2%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 162 100% 50%; /* #00FFAA - accent */
+    --primary-foreground: 0 0% 5.5%;
+
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 162 100% 50%; /* #00FFAA */
+    --accent-foreground: 0 0% 5.5%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 95%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 162 100% 50%;
+
+    --radius: 0.75rem;
+
+    /* Status colors */
+    --status-live: 0 84% 60%; /* red for live */
+    --status-upcoming: 162 100% 50%; /* accent for upcoming */
+    
+    /* Gradient accents */
+    --gradient-primary: linear-gradient(135deg, hsl(162 100% 50%) 0%, hsl(162 100% 35%) 100%);
+    --glow-accent: 0 0 30px hsla(162 100% 50% / 0.3);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-montserrat antialiased;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Smooth page transitions */
+  main, section {
+    animation: fade-in 0.3s ease-out;
+  }
+}
+
+/* Premium Report Markdown Styles */
+.premium-report {
+  @apply text-muted-foreground leading-relaxed;
+}
+
+.premium-report h2 {
+  @apply text-primary font-bold text-xl mt-8 mb-4 pb-2 border-b border-primary/30;
+}
+
+.premium-report h3 {
+  @apply text-foreground font-semibold text-lg mt-6 mb-3;
+}
+
+.premium-report p {
+  @apply mb-6 leading-7;
+}
+
+.premium-report strong {
+  @apply text-foreground font-semibold;
+}
+
+.premium-report em {
+  @apply text-primary/90 not-italic;
+}
+
+.premium-report ul, .premium-report ol {
+  @apply mb-6 pl-6 space-y-2;
+}
+
+.premium-report li {
+  @apply leading-7;
+}
+
+.premium-report table {
+  @apply w-full mb-6 border-collapse rounded-lg overflow-hidden;
+}
+
+.premium-report thead tr {
+  @apply bg-primary/20;
+}
+
+.premium-report th {
+  @apply px-4 py-3 text-left font-semibold text-foreground;
+}
+
+.premium-report tbody tr:nth-child(odd) {
+  @apply bg-muted/30;
+}
+
+.premium-report tbody tr:nth-child(even) {
+  @apply bg-muted/10;
+}
+
+.premium-report td {
+  @apply px-4 py-3 border-t border-border/30;
+}
+
+.premium-report blockquote {
+  @apply border-l-4 border-primary pl-4 italic text-muted-foreground my-6;
+}
+
+.premium-report hr {
+  @apply border-border my-8;
+}
