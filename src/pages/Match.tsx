@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSavePrediction } from "@/hooks/usePredictions";
+import { applyOpenDotaRosters } from "@/lib/dotaRosters";
 
 export default function Match() {
   const { id } = useParams();
@@ -51,7 +52,7 @@ export default function Match() {
         console.error('Error fetching match details:', error);
         toast.error('Не удалось загрузить детали матча');
       } else {
-        setMatchData(data);
+        setMatchData(await applyOpenDotaRosters(data));
       }
     } catch (error) {
       console.error('Error:', error);
