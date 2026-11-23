@@ -266,6 +266,13 @@ export default function Match() {
                   </Badge>
                 </div>
               )}
+              {matchData.rostersSource === 'opendota' && (
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <Badge className="bg-primary/20 text-primary border-primary/50">
+                    Составы OpenDota
+                  </Badge>
+                </div>
+              )}
               
               <div className="grid md:grid-cols-2 gap-8">
                 <Card className="p-6">
@@ -281,7 +288,11 @@ export default function Match() {
                           )}
                           <div>
                             <p className="font-medium">{player.name}</p>
-                            <p className="text-xs text-muted-foreground">{player.role}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {typeof player.games_played === "number"
+                                ? `${player.wins} побед · ${player.games_played} игр`
+                                : player.role}
+                            </p>
                           </div>
                         </div>
                       ))
@@ -304,7 +315,11 @@ export default function Match() {
                           )}
                           <div>
                             <p className="font-medium">{player.name}</p>
-                            <p className="text-xs text-muted-foreground">{player.role}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {typeof player.games_played === "number"
+                                ? `${player.wins} побед · ${player.games_played} игр`
+                                : player.role}
+                            </p>
                           </div>
                         </div>
                       ))
