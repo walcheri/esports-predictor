@@ -5,6 +5,7 @@ Status: **PARTIAL — draft for partner review, not a production release**.
 ## Revision and scope
 
 - Repository: `walcheri/esports-predictor` (public).
+- Draft PR: [#5](https://github.com/walcheri/esports-predictor/pull/5).
 - Branch: `codex/lineradar-integration-foundation`; target: `main`.
 - Base: `ede72f3fe921b80cd4c32b4e8d7746d496bde5c1`.
 - Tested implementation HEAD: `807385021bb6b8aca09a36ca762c4882713ed220`.
@@ -80,8 +81,12 @@ empty UI interfaces, frontend/Edge `any` types, prefer-const, unnecessary regex
 escapes and tailwind require(). React-refresh/hook warnings remain. No legacy errors
 were hidden. Build warns about old Browserslist data and a >500 kB bundle.
 
-CI: pending creation/execution of draft PR at report preparation; will be updated
-after observing actual GitHub Actions results. No green CI claim is made here.
+CI: [run 45664817663](https://github.com/walcheri/esports-predictor/actions/runs/45664817663)
+completed on PR head `91ed51b0868b3e2bfece0636bdffea09d81dbe24`.
+Ubuntu frontend job **success**: locked install, 37/37 tests, TypeScript and build.
+Full lint job **failure**, exit 1: logs confirm 62 errors and 11 warnings in existing
+code. Overall CI conclusion **failure**, intentionally not presented as green.
+This report update changes documentation only; the PR discussion records subsequent head/CI.
 Deno edge tests, live RLS tests, historical backtests and real bridge tests: **NOT_RUN**.
 
 ## Static audit verification and follow-up PRs
@@ -106,8 +111,10 @@ Confirmed by source inspection (not live exploit tests):
    then separate disabled Radar UI PR.
 
 The GitHub connector returned 403 `Resource not accessible by integration` for issue
-creation. Existing local Git credentials were checked separately (push permission
-confirmed); the authorized GitHub API fallback successfully created Issues #2–#4.
+and PR creation. Existing local Git credentials were checked separately (push permission
+confirmed); the authorized GitHub API fallback successfully created Issues #2–#4
+and draft PR #5. Python HTTPS later failed certificate validation; the PowerShell
+HTTPS client using the system trust store succeeded without disabling TLS verification.
 Credentials were held in memory, never printed or written to project files.
 
 ## External state and security boundaries
