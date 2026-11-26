@@ -22,6 +22,7 @@ import ReactMarkdown from "react-markdown";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSavePrediction } from "@/hooks/usePredictions";
 import { applyOpenDotaRosters } from "@/lib/dotaRosters";
+import { buildRosterSection, replaceRosterSection } from "../../supabase/functions/generate-prediction/rosterReport";
 
 export default function Match() {
   const { id } = useParams();
@@ -68,15 +69,29 @@ export default function Match() {
     setIsGenerating(true);
     setPredictionSaved(false);
     try {
+      const prepared = await applyOpenDotaRosters(matchData);
+      setMatchData(prepared);
       const { data, error } = await supabase.functions.invoke('generate-prediction', {
-        body: { matchData },
+        body: { matchData: prepared },
       });
 
       if (error) {
         console.error('Error generating prediction:', error);
         toast.error('Не удалось сгенерировать прогноз');
       } else {
-        setPrediction(data);
+        const analysis = prepared.rostersSource === "opendota"
+          ? replaceRosterSection(
+              data.analysis ?? "",
+              buildRosterSection(
+                prepared.team1?.name || "Team A",
+                prepared.team1?.players,
+                prepared.team2?.name || "Team B",
+                prepared.team2?.players,
+              ),
+            )
+          : data.analysis;
+        const prediction = { ...data, analysis };
+        setPrediction(prediction);
         toast.success('Прогноз успешно сгенерирован!');
         
         // Auto-save prediction if user is logged in
@@ -84,17 +99,17 @@ export default function Match() {
           try {
             await savePrediction.mutateAsync({
               match_id: id,
-              team_a: matchData.team1?.name || "Team 1",
-              team_b: matchData.team2?.name || "Team 2",
-              game: matchData.game || "unknown",
-              tournament: matchData.tournament || null,
-              predicted_winner: data.team1Probability > data.team2Probability 
-                ? matchData.team1?.name 
-                : matchData.team2?.name,
-              ai_probability_a: String(data.team1Probability),
-              ai_probability_b: String(data.team2Probability),
-              report_preview: data.analysis?.substring(0, 200) || null,
-              full_report: data.analysis || null,
+              team_a: prepared.team1?.name || "Team 1",
+              team_b: prepared.team2?.name || "Team 2",
+              game: prepared.game || "unknown",
+              tournament: prepared.tournament || null,
+              predicted_winner: prediction.team1Probability > prediction.team2Probability 
+                ? prepared.team1?.name 
+                : prepared.team2?.name,
+              ai_probability_a: String(prediction.team1Probability),
+              ai_probability_b: String(prediction.team2Probability),
+              report_preview: prediction.analysis?.substring(0, 200) || null,
+              full_report: prediction.analysis || null,
             });
             setPredictionSaved(true);
             toast.success('Прогноз сохранён в профиле!', {

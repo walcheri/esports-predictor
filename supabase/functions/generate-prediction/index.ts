@@ -1,6 +1,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requestGroqCompletion } from './groq.ts';
+import { OpenDotaError, OpenDotaRosters } from '../fetch-match-details/opendota.ts';
+import { buildRosterSection, replaceRosterSection, type RosterPlayer } from './rosterReport.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,6 +35,21 @@ const gameConfig: Record<string, {
     sources: 'OP.GG, Leaguepedia, Games of Legends',
   }
 };
+
+async function loadDotaRoster(client: OpenDotaRosters, teamName: string): Promise<RosterPlayer[]> {
+  try {
+    const roster = await client.getRoster(teamName);
+    return roster.players.map((player) => ({
+      name: player.name || `ID ${player.account_id}`,
+      wins: player.wins,
+      games_played: player.games_played,
+    }));
+  } catch (error) {
+    const status = error instanceof OpenDotaError ? error.status : 0;
+    console.log(`OpenDota roster failed for ${teamName}:`, status, error instanceof Error ? error.message : error);
+    return [];
+  }
+}
 
 function getGameSlug(game: string): string {
   const g = game.toLowerCase();
@@ -84,14 +101,25 @@ serve(async (req) => {
     const team2Recent = matchData.team2Recent?.length > 0 
       ? JSON.stringify(matchData.team2Recent, null, 2) 
       : 'Используй свои знания';
-    const rosterLine = (teamName: string, players: Array<{ name?: string }> | undefined) => {
-      const names = (players ?? []).map((player) => player?.name?.trim()).filter((name): name is string => Boolean(name));
+    let playersA: RosterPlayer[] = matchData.team1?.players ?? [];
+    let playersB: RosterPlayer[] = matchData.team2?.players ?? [];
+    if (gameSlug === 'dota2') {
+      const rosters = new OpenDotaRosters();
+      const [loadedA, loadedB] = await Promise.all([
+        loadDotaRoster(rosters, teamA),
+        loadDotaRoster(rosters, teamB),
+      ]);
+      if (loadedA.length > 0) playersA = loadedA;
+      if (loadedB.length > 0) playersB = loadedB;
+    }
+    const rosterLine = (teamName: string, players: RosterPlayer[]) => {
+      const names = players.map((player) => player?.name?.trim()).filter((name): name is string => Boolean(name));
       return names.length > 0
         ? `${teamName}: ${names.join(", ")}`
         : `${teamName}: состав не подтверждён. Не выдумывай ники и не подставляй игроков другой команды.`;
     };
-    const rosterA = rosterLine(teamA, matchData.team1?.players);
-    const rosterB = rosterLine(teamB, matchData.team2?.players);
+    const rosterA = rosterLine(teamA, playersA);
+    const rosterB = rosterLine(teamB, playersB);
 
     const systemPrompt = `Ты — лучший в мире русскоязычный аналитик киберспорта (стиль: launders + YNk + Thorin). 
 Пиши подробно, убедительно, с драматургией и абзацами. Объём — минимум 1500 слов. 
@@ -188,6 +216,10 @@ serve(async (req) => {
       .replace(/[-|]{4,}/g, '')
       .replace(/\n\s*\n\s*\n/g, '\n\n')
       .replace(/допустим|предположим|Игрок\s*\d/gi, '');
+
+    if (gameSlug === 'dota2') {
+      report = replaceRosterSection(report, buildRosterSection(teamA, playersA, teamB, playersB));
+    }
 
     console.log('Report length:', report.length, 'chars');
 

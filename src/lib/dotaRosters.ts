@@ -29,7 +29,7 @@ function mapPlayers(players: DotaRosterPlayer[]) {
 
 /** Replace Dota 2 lineups with the current OpenDota roster. Other games stay unchanged. */
 export async function applyOpenDotaRosters<T extends MatchWithRosters>(match: T): Promise<T> {
-  if (!match.game?.toLowerCase().includes("dota") || match.rostersSource === "opendota") {
+  if (!match.game?.toLowerCase().includes("dota")) {
     return match;
   }
 
