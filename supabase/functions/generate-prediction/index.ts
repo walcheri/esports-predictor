@@ -1,6 +1,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requestGroqCompletion } from './groq.ts';
+import { OpenDotaError, OpenDotaRosters } from '../fetch-match-details/opendota.ts';
+import { buildRosterSection, replaceRosterSection, type RosterPlayer } from './rosterReport.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,6 +35,21 @@ const gameConfig: Record<string, {
     sources: 'OP.GG, Leaguepedia, Games of Legends',
   }
 };
+
+async function loadDotaRoster(client: OpenDotaRosters, teamName: string): Promise<RosterPlayer[]> {
+  try {
+    const roster = await client.getRoster(teamName);
+    return roster.players.map((player) => ({
+      name: player.name || `ID ${player.account_id}`,
+      wins: player.wins,
+      games_played: player.games_played,
+    }));
+  } catch (error) {
+    const status = error instanceof OpenDotaError ? error.status : 0;
+    console.log(`OpenDota roster failed for ${teamName}:`, status, error instanceof Error ? error.message : error);
+    return [];
+  }
+}
 
 function getGameSlug(game: string): string {
   const g = game.toLowerCase();
@@ -84,17 +101,37 @@ serve(async (req) => {
     const team2Recent = matchData.team2Recent?.length > 0 
       ? JSON.stringify(matchData.team2Recent, null, 2) 
       : 'Используй свои знания';
+    let playersA: RosterPlayer[] = matchData.team1?.players ?? [];
+    let playersB: RosterPlayer[] = matchData.team2?.players ?? [];
+    if (gameSlug === 'dota2') {
+      const rosters = new OpenDotaRosters();
+      const [loadedA, loadedB] = await Promise.all([
+        loadDotaRoster(rosters, teamA),
+        loadDotaRoster(rosters, teamB),
+      ]);
+      if (loadedA.length > 0) playersA = loadedA;
+      if (loadedB.length > 0) playersB = loadedB;
+    }
+    const rosterLine = (teamName: string, players: RosterPlayer[]) => {
+      const names = players.map((player) => player?.name?.trim()).filter((name): name is string => Boolean(name));
+      return names.length > 0
+        ? `${teamName}: ${names.join(", ")}`
+        : `${teamName}: состав не подтверждён. Не выдумывай ники и не подставляй игроков другой команды.`;
+    };
+    const rosterA = rosterLine(teamA, playersA);
+    const rosterB = rosterLine(teamB, playersB);
 
     const systemPrompt = `Ты — лучший в мире русскоязычный аналитик киберспорта (стиль: launders + YNk + Thorin). 
 Пиши подробно, убедительно, с драматургией и абзацами. Объём — минимум 1500 слов. 
-Никогда не пиши "допустим", "предположим", "Игрок 1/2", "данных нет".
-Всегда используй реальные ники игроков и данные из своих знаний о киберспорте.
+Никогда не пиши "допустим", "предположим", "Игрок 1/2".
+Если для команды передан список ников, в разделе составов используй только его. Не заменяй академию или состав с приставкой x игроками основной команды организации.
 Адаптируй терминологию под ${game}: ${config.terms}.
 Источники: ${config.sources}.`;
 
     const userPrompt = `Сделай детальный анализ матча **${teamA}** vs **${teamB}** (${game}, ${tournament}, ${format}, ${startTime}).
 
 Доступные данные:
+- Составы: ${rosterA}. ${rosterB}
 - H2H: ${h2h}
 - Карты: ${mapStats}
 - Последние матчи ${teamA}: ${team1Recent}
@@ -103,8 +140,8 @@ serve(async (req) => {
 ## ОБЯЗАТЕЛЬНАЯ СТРУКТУРА ОТЧЁТА:
 
 ## 📊 Составы команд и ключевые игроки
-(Каждый игрок: ник, роль (${config.roles.join('/')}), рейтинг/KDA, стиль игры. Используй реальные актуальные составы из своих знаний.)
-В начале блока укажи: "📊 Составы сканированы с ${config.sources} на февраль 2026"
+(Каждый игрок из переданного списка: ник, роль (${config.roles.join('/')}), рейтинг/KDA, стиль игры. Не добавляй ники, которых нет в списке.)
+В начале блока укажи: "📊 Составы взяты из переданных данных OpenDota"
 
 ## ⚔️ История личных встреч
 (Минимум 5-10 встреч с датами и счётом, текстом — НЕ таблицей)
@@ -179,6 +216,10 @@ serve(async (req) => {
       .replace(/[-|]{4,}/g, '')
       .replace(/\n\s*\n\s*\n/g, '\n\n')
       .replace(/допустим|предположим|Игрок\s*\d/gi, '');
+
+    if (gameSlug === 'dota2') {
+      report = replaceRosterSection(report, buildRosterSection(teamA, playersA, teamB, playersB));
+    }
 
     console.log('Report length:', report.length, 'chars');
 

@@ -1,10 +1,26 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { OpenDotaError, OpenDotaRosters, type DotaRosterPlayer } from "./opendota.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+function isDotaGame(game: string): boolean {
+  return game?.toLowerCase().includes('dota') ?? false;
+}
+
+function mapOpenDotaPlayers(players: DotaRosterPlayer[]) {
+  return players.map((player) => ({
+    name: player.name || `ID ${player.account_id}`,
+    account_id: player.account_id,
+    games_played: player.games_played,
+    wins: player.wins,
+    role: 'Player',
+    image: '',
+  }));
+}
 
 // Check if game is CS2 or Dota 2 (eligible for GRID)
 function isGRIDEligible(game: string): boolean {
@@ -353,7 +369,7 @@ serve(async (req) => {
     // Priority: GRID > PandaScore > Artemox
     let mergedTeam1Players: any[] = [];
     let mergedTeam2Players: any[] = [];
-    let rostersSource: 'grid' | 'pandascore' | 'artemox' | null = null;
+    let rostersSource: 'opendota' | 'grid' | 'pandascore' | 'artemox' | null = null;
     
     if (gridRosters.source === 'grid' && (gridRosters.team1Players.length > 0 || gridRosters.team2Players.length > 0)) {
       // Use GRID rosters
@@ -391,6 +407,31 @@ serve(async (req) => {
       }));
       rostersSource = 'artemox';
       console.log('Using Artemox rosters');
+    }
+
+    // Dota 2 rosters come from OpenDota. Other games keep the sources above.
+    if (isDotaGame(gameName)) {
+      const rosters = new OpenDotaRosters();
+      const loadRoster = async (teamName: string) => {
+        try {
+          const roster = await rosters.getRoster(teamName);
+          return mapOpenDotaPlayers(roster.players);
+        } catch (error) {
+          const status = error instanceof OpenDotaError ? error.status : 0;
+          console.log(`OpenDota roster failed for ${teamName}:`, status, error instanceof Error ? error.message : error);
+          return [];
+        }
+      };
+      const [openDotaTeam1, openDotaTeam2] = await Promise.all([
+        loadRoster(team1Name),
+        loadRoster(team2Name),
+      ]);
+      if (openDotaTeam1.length > 0 || openDotaTeam2.length > 0) {
+        if (openDotaTeam1.length > 0) mergedTeam1Players = openDotaTeam1;
+        if (openDotaTeam2.length > 0) mergedTeam2Players = openDotaTeam2;
+        rostersSource = 'opendota';
+        console.log('Using OpenDota rosters:', openDotaTeam1.length, '/', openDotaTeam2.length);
+      }
     }
 
     // Calculate map winrates
