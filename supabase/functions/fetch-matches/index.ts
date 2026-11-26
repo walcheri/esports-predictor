@@ -169,11 +169,14 @@ async function fetchFromPandaScore(
     });
 }
 
-serve(async (req) => {
+const legacyHandler = async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  if (Deno.env.get("PREDICTOR_LEGACY_PROVIDERS_ENABLED") !== "true") {
+    return Response.json({ error: "LEGACY_PROVIDER_DISABLED" }, { status: 503, headers: corsHeaders });
+  }
   try {
     const { game, date, status, leagueId } = await req.json();
     const PANDA_SCORE_TOKEN = Deno.env.get('PANDA_SCORE_TOKEN');
@@ -224,4 +227,8 @@ serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+ };
+// Legacy fan-out stays unreachable until strict, budgeted adapters replace it.
+serve((req) => req.method === "OPTIONS"
+  ? new Response(null, { headers: corsHeaders })
+  : Response.json({ error: "LEGACY_PROVIDER_DISABLED" }, { status: 503, headers: corsHeaders }));
