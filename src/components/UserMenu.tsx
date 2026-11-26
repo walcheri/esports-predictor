@@ -1,6 +1,7 @@
+import { toast } from "sonner";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-state";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -32,19 +33,32 @@ export const UserMenu = () => {
         >
           Войти
         </Button>
-        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+        />
       </>
     );
   }
 
-  const initials = profile?.email?.substring(0, 2).toUpperCase() || user.email?.substring(0, 2).toUpperCase() || "U";
+  const initials =
+    profile?.email?.substring(0, 2).toUpperCase() ||
+    user.email?.substring(0, 2).toUpperCase() ||
+    "U";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+        <Button
+          aria-label="Открыть профиль"
+          variant="ghost"
+          className="relative h-10 w-10 rounded-full"
+        >
           <Avatar className="h-10 w-10 border-2 border-primary">
-            <AvatarImage src={profile?.avatar_url || ""} alt={profile?.email || ""} />
+            <AvatarImage
+              src={profile?.avatar_url || ""}
+              alt={profile?.email || ""}
+            />
             <AvatarFallback className="bg-primary text-primary-foreground font-bold">
               {initials}
             </AvatarFallback>
@@ -72,13 +86,19 @@ export const UserMenu = () => {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to="/profile?tab=history" className="flex items-center cursor-pointer">
+          <Link
+            to="/profile?tab=history"
+            className="flex items-center cursor-pointer"
+          >
             <History className="mr-2 h-4 w-4" />
             История прогнозов
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to="/profile?tab=settings" className="flex items-center cursor-pointer">
+          <Link
+            to="/profile?tab=settings"
+            className="flex items-center cursor-pointer"
+          >
             <Settings className="mr-2 h-4 w-4" />
             Настройки
           </Link>
@@ -86,7 +106,11 @@ export const UserMenu = () => {
         <DropdownMenuSeparator className="bg-border" />
         <DropdownMenuItem
           className="text-destructive focus:text-destructive cursor-pointer"
-          onClick={signOut}
+          onClick={() =>
+            void signOut().catch(() =>
+              toast.error("Не удалось выйти. Повторите попытку."),
+            )
+          }
         >
           <LogOut className="mr-2 h-4 w-4" />
           Выйти

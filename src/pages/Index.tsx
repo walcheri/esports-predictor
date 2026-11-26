@@ -34,51 +34,6 @@ const games = [
 
 const Index = () => {
   const navigate = useNavigate();
-  const [gameStats, setGameStats] = useState<
-    Record<string, { today: number; live: number }>
-  >({});
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchStats = async () => {
-      try {
-        const updates: Record<string, { today: number; live: number }> = {};
-
-        for (const game of games) {
-          const [todayRes, liveRes] = await Promise.all([
-            supabase.functions.invoke<{ matches: any[] }>("fetch-matches", {
-              body: { game: game.id, date: "today", status: "all" },
-            }),
-            supabase.functions.invoke<{ matches: any[] }>("fetch-matches", {
-              body: { game: game.id, date: "48h", status: "live" },
-            }),
-          ]);
-
-          const todayCount = todayRes.data?.matches?.length ?? 0;
-          const liveCount = liveRes.data?.matches?.length ?? 0;
-
-          updates[game.id] = { today: todayCount, live: liveCount };
-        }
-
-        if (isMounted) {
-          setGameStats(updates);
-        }
-      } catch (error) {
-        console.error("Error fetching game stats:", error);
-        toast.error("Не удалось загрузить статистику матчей");
-      }
-    };
-
-    fetchStats();
-    const interval = setInterval(fetchStats, 5 * 60 * 1000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, []);
-
   const handleGameClick = (gameId: string) => {
     navigate(`/matches?game=${gameId}`);
   };
@@ -86,18 +41,19 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       {/* Hero Section */}
       <section className="pt-32 pb-16 px-4">
         <div className="container mx-auto text-center space-y-6">
           <h1 className="text-5xl md:text-7xl font-black">
-            Прогнозируй матчи{" "}
+            Исследуй матчи{" "}
             <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-              с ИИ
+              по данным
             </span>
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
-            Выбери дисциплину и получи точный прогноз
+            Проверяемые источники. Прогнозы только после проверки качества
+            модели.
           </p>
         </div>
       </section>
@@ -122,17 +78,10 @@ const Index = () => {
                       {game.name}
                     </h3>
                     <div className="text-sm text-muted-foreground text-center space-y-1">
-                      {gameStats[game.id] ? (
-                        <>
-                          <p>{gameStats[game.id].today} матчей сегодня</p>
-                          <p>{gameStats[game.id].live} матчей live</p>
-                        </>
-                      ) : (
-                        <p>Загрузка статистики...</p>
-                      )}
+                      <p>Каталог и проверяемость данных</p>
                     </div>
                   </div>
-                  
+
                   {/* Glow effect */}
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/0 to-primary/0 group-hover:from-primary/10 group-hover:to-primary/5 transition-all duration-300" />
                 </button>

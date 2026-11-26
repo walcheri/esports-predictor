@@ -50,3 +50,7 @@ its roster query/name matching is not evidence of a verified source. Artemox and
 are text generation, not primary sports facts. PR #1 is useful experimental work but
 its current-roster flag cannot be projected backward into historical matches.
 No provider is accepted unconditionally. See provider comparison and release roadmap.
+
+
+## Stage E follow-up (2026-11-27)
+The dependent frontend draft fixes the legacy DTO mismatch, fabricated percentages/rosters, date reconstruction, stale request/session races, misleading Premium offers, lint/dependency findings, and client-authored forecast trust. New issues found on re-audit: retrospective target identity leakage, stale-roster history, contradictory map IDs, prototype-like slugs and waitlist duplicate enumeration. Fixes/tests and remaining blockers are documented in `../reports/2026-11-27-predictor-frontend-quality.md`. Actual staging RLS and licensed PIT data remain unverified; Issues #2/#3 are not closed merely because proposed code exists. Production forecast persistence remains gated until model approval.

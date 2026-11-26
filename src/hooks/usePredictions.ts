@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-state";
 
 export interface Prediction {
   id: string;
@@ -40,32 +40,6 @@ export const usePredictions = (limit = 20, offset = 0) => {
   });
 };
 
-export const useSavePrediction = () => {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (prediction: Omit<Prediction, "id" | "user_id" | "created_at">) => {
-      if (!user) throw new Error("User not authenticated");
-
-      const { data, error } = await supabase
-        .from("predictions")
-        .insert({
-          ...prediction,
-          user_id: user.id,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["predictions"] });
-    },
-  });
-};
-
 export const usePredictionStats = () => {
   const { user } = useAuth();
 
@@ -77,12 +51,14 @@ export const usePredictionStats = () => {
       const { data, error } = await supabase
         .from("predictions")
         .select("*")
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1000);
 
       if (error) throw error;
 
       const predictions = data as Prediction[];
-      
+
       // Calculate stats by game
       const gameStats: Record<string, number> = {};
       predictions.forEach((p) => {
@@ -93,7 +69,7 @@ export const usePredictionStats = () => {
       // Calculate predictions by date (last 30 days)
       const last30Days = new Date();
       last30Days.setDate(last30Days.getDate() - 30);
-      
+
       const dailyPredictions: Record<string, number> = {};
       predictions.forEach((p) => {
         const date = new Date(p.created_at);

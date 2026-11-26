@@ -1,3 +1,38 @@
+# Standalone predictor — review candidate, not a validated forecasting service
+
+The A–E draft stack replaces fabricated statistics with typed, partial data and explicit abstention. Main, PR #1 and the future LineRadar PR #5 are not merged or modified. No real API collection or production Supabase deployment has been performed. Real model quality and staging policies remain unverified.
+
+## Local checks (Windows PowerShell or Ubuntu)
+
+Use Node 22.12+ and npm. `npm ci` is the tested dependency source; the old Bun lock is not the release source. Preserve Lovable configuration and review before switching its deployment branch.
+
+```sh
+npm ci
+npm test
+npm run typecheck
+npm run lint
+npm audit --audit-level=low
+npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+Browser tests use a fake Supabase hostname, local synthetic fixtures, and block external traffic. They never query production. Server Edge type-check: `npx deno check supabase/functions/fetch-matches/index.ts supabase/functions/fetch-match-details/index.ts supabase/functions/fetch-tournaments/index.ts supabase/functions/generate-prediction/index.ts`.
+
+For development, create an ignored `.env.local` from `.env.example`. Keep both external-data flags false until source/staging approval. Do not put a service-role secret in a VITE variable. `npm run dev` preserves the Lovable tagger. A real sign-in requires an approved Supabase project; OAuth/email delivery is not demonstrated by mocks.
+
+- [Source validation and required approvals](docs/research/REAL_DATA_VALIDATION_PLAN.md)
+- [Full audit](docs/audits/PREDICTOR_FULL_AUDIT.md)
+- [Model and limitations](docs/analytics/PREDICTION_MODEL_DESIGN.md)
+- [Backtest status](docs/analytics/BACKTEST_RESULTS.md)
+- [Release roadmap](docs/ROADMAP_TO_RELEASE.md)
+
+Historical LLM predictions remain an explicitly unverified archive. New client-authored inserts are disabled by a proposed SQL migration; no live migration has been applied. Roster/H2H/map panels show unavailable while no licensed PIT dataset is connected. Premium is a waitlist only, without a price or discount promise. Paid API/infrastructure spend authorized in this stage: **0**.
+
+Rollback: before merge, close/revert the dependent draft stack. For a future approved staging deployment, retain the prior frontend/Edge artifacts and schema backup; disable external flags first, then restore reviewed application artifacts. Do not restore permissive public profile reads or fabricate predictions to obtain backward compatibility. Keep budget ledgers and historical user records. Production deployment/rollback requires a separate approved runbook and staging evidence.
+
+---
+
 # Welcome to your Lovable project
 
 ## Project info
