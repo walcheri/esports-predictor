@@ -12,3 +12,6 @@ Publish aggregate metrics only, never private provider payloads or player/user d
 Next: approve a dataset source and bounded collection, verify IDs/results/availableAt,
 freeze the manifest, run untouched holdout evaluation and independent review. Lack of
 paid data does not block implementation or synthetic leakage/formula tests.
+
+## Implemented offline harness (2026-11-26)
+`npx tsx scripts/backtest.ts LOCAL.json CALIBRATION_UTC TEST_UTC` accepts an explicitly licensed local observation file; report includes SHA256, chronological scores and 12 discipline/BO strata. JSON input: `{"licenseConfirmed":true,"observations":[{"raw":{},"obtainedAt":"2026-01-01T00:00:00Z"}]}`; raw must satisfy the PandaScore adapter, not an empty object. Do not commit licensed datasets or raw outputs. CLI does no networking. Automated synthetic fixtures validate calculations, not forecast quality. Real metrics remain NOT_RUN. Roster/patch effectiveness and out-of-sample improvement are NOT_VERIFIED. Production endpoint remains abstaining.
