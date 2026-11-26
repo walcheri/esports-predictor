@@ -1,5 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { secure } from "../_shared/security.ts";
+import { runtime } from "../_shared/runtime.ts";
 import { requestGroqCompletion } from './groq.ts';
 
 const corsHeaders = {
@@ -43,7 +45,7 @@ function getGameSlug(game: string): string {
   return 'csgo';
 }
 
-serve(async (req) => {
+const handler = async (req: Request, paidFetch: typeof fetch) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -141,7 +143,7 @@ serve(async (req) => {
         ],
         max_tokens: 6000,
         temperature: 0.7,
-    });
+    }, paidFetch);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -232,4 +234,7 @@ serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+ };
+serve(secure("groq", async (body, paidFetch) => handler(new Request("https://local.invalid", {
+  method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+}), paidFetch), runtime((key) => Deno.env.get(key))));

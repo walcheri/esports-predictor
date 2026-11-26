@@ -1,13 +1,13 @@
 project_id = "askfmubxfxwyzjnffsqp"
 
 [functions.fetch-matches]
-verify_jwt = false
+verify_jwt = true
 
 [functions.fetch-match-details]
-verify_jwt = false
+verify_jwt = true
 
 [functions.fetch-tournaments]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-prediction]
-verify_jwt = false
+verify_jwt = true
