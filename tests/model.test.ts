@@ -158,3 +158,22 @@ test("calibration fits only a separate sufficiently large prefix; invalid probab
     scores([{ id: "bad", at: "", game: "cs2", bestOf: 3, p: NaN, y: 1 }]),
   );
 });
+
+test("calibration excludes labels fetched after test start even if published earlier", () => {
+  const late = rows.map((m, i) =>
+    i >= 10 && i < 45
+      ? {
+          ...m,
+          provenance: { ...m.provenance, obtainedAt: "2028-01-01T00:00:00Z" },
+        }
+      : m,
+  );
+  const report = backtest(
+    late,
+    "2026-01-11T00:00:00Z",
+    "2026-02-15T00:00:00Z",
+    { eventSnapshots: rows.map(before) },
+  );
+  assert.equal(report.calibrationSamples, 0);
+  assert.equal(report.calibrationFitted, false);
+});

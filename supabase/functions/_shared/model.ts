@@ -249,7 +249,8 @@ export function backtest(
           m.id === r.id &&
           m.endedAt &&
           Date.parse(m.endedAt) < split &&
-          Date.parse(m.provenance.availableAt) < split,
+          Date.parse(m.provenance.availableAt) < split &&
+          Date.parse(m.provenance.obtainedAt) < split,
       ),
   );
   // Only a predeclared finite grid fitted on a separate calibration period.
