@@ -1,8 +1,11 @@
 /**
  * Dota 2 team rosters from OpenDota.
  *
- * Team names are resolved with GET /teams (name or tag). GET /search is a
- * player search and is not used. An API key is optional:
+ * Team names are resolved with GET /teams (name, tag, or the same name
+ * without a leading "Team"). Teams outside that top list, such as
+ * "Spirit Academy" → "Team Spirit Academy", are resolved through
+ * GET /proPlayers and then loaded with GET /teams/{team_id}/players.
+ * GET /search is a player search and is not used. An API key is optional:
  * pass `apiKey` or set OPENDOTA_API_KEY.
  *
  * ```ts
@@ -49,6 +52,12 @@ interface OpenDotaTeamPlayer {
   is_current_team_member?: boolean | null;
 }
 
+interface OpenDotaProPlayer {
+  team_id?: number | null;
+  team_name?: string | null;
+  team_tag?: string | null;
+}
+
 export class OpenDotaError extends Error {
   readonly status: number;
 
@@ -69,6 +78,15 @@ function normalizeName(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+/** "Team Spirit Academy" and "Spirit Academy" describe the same side. */
+function canonicalTeamName(value: string): string {
+  return normalizeName(value)
+    .replace(/[.'’`]/g, "")
+    .replace(/^team\s+/, "")
+    .replace(/\s+esports$/, "")
+    .trim();
+}
+
 function parseTeamId(team: string | number): number | null {
   if (typeof team === "number" && Number.isInteger(team) && team > 0) return team;
   if (typeof team === "string" && /^[0-9]+$/.test(team.trim())) {
@@ -81,7 +99,8 @@ function parseTeamId(team: string | number): number | null {
 export class OpenDotaRosters {
   private readonly apiKey: string | undefined;
   private readonly fetchImpl: typeof fetch;
-  private teamList: OpenDotaTeam[] | null = null;
+  private teamListRequest: Promise<OpenDotaTeam[]> | null = null;
+  private proPlayerRequest: Promise<OpenDotaProPlayer[]> | null = null;
 
   constructor(options: OpenDotaOptions = {}) {
     this.apiKey = options.apiKey === undefined ? readEnvApiKey() : options.apiKey.trim() || undefined;
@@ -121,15 +140,59 @@ export class OpenDotaRosters {
       throw new OpenDotaError(409, `Multiple OpenDota teams match tag "${query}"`);
     }
 
-    throw new OpenDotaError(404, `OpenDota team not found: ${query}`);
+    const canonical = canonicalTeamName(query);
+    const byCanonical = teams.filter((item) => item.name && canonicalTeamName(item.name) === canonical);
+    if (byCanonical.length === 1) return byCanonical[0];
+    if (byCanonical.length > 1) {
+      throw new OpenDotaError(409, `Multiple OpenDota teams match "${query}"`);
+    }
+
+    return this.findTeamFromProPlayers(query, needle, canonical);
   }
 
-  private async getTeams(): Promise<OpenDotaTeam[]> {
-    if (this.teamList) return this.teamList;
-    const teams = await this.getJson<OpenDotaTeam[]>("/teams");
-    if (!Array.isArray(teams)) throw new OpenDotaError(502, "OpenDota /teams returned an unexpected payload");
-    this.teamList = teams.filter((team) => Number.isInteger(team.team_id) && team.team_id > 0);
-    return this.teamList;
+  private async findTeamFromProPlayers(query: string, needle: string, canonical: string): Promise<OpenDotaTeam> {
+    const players = await this.getProPlayers();
+    const matches = new Map<number, OpenDotaTeam>();
+
+    for (const player of players) {
+      const teamId = player.team_id;
+      if (!Number.isInteger(teamId) || !teamId || teamId <= 0 || matches.has(teamId)) continue;
+      const name = player.team_name?.trim() || "";
+      const tag = player.team_tag?.trim() || "";
+      const nameMatches = Boolean(name) && (normalizeName(name) === needle || canonicalTeamName(name) === canonical);
+      const tagMatches = Boolean(tag) && normalizeName(tag) === needle;
+      if (nameMatches || tagMatches) matches.set(teamId, { team_id: teamId, name, tag });
+    }
+
+    if (matches.size === 0) throw new OpenDotaError(404, `OpenDota team not found: ${query}`);
+    if (matches.size > 1) throw new OpenDotaError(409, `Multiple OpenDota teams match "${query}"`);
+    const matched = [...matches.values()][0];
+    try {
+      return await this.getTeam(matched.team_id);
+    } catch (error) {
+      if (error instanceof OpenDotaError && error.status === 404) return matched;
+      throw error;
+    }
+  }
+
+  private getTeams(): Promise<OpenDotaTeam[]> {
+    if (!this.teamListRequest) {
+      this.teamListRequest = this.getJson<OpenDotaTeam[]>("/teams").then((teams) => {
+        if (!Array.isArray(teams)) throw new OpenDotaError(502, "OpenDota /teams returned an unexpected payload");
+        return teams.filter((team) => Number.isInteger(team.team_id) && team.team_id > 0);
+      });
+    }
+    return this.teamListRequest;
+  }
+
+  private getProPlayers(): Promise<OpenDotaProPlayer[]> {
+    if (!this.proPlayerRequest) {
+      this.proPlayerRequest = this.getJson<OpenDotaProPlayer[]>("/proPlayers").then((players) => {
+        if (!Array.isArray(players)) throw new OpenDotaError(502, "OpenDota /proPlayers returned an unexpected payload");
+        return players;
+      });
+    }
+    return this.proPlayerRequest;
   }
 
   private getTeam(teamId: number): Promise<OpenDotaTeam> {

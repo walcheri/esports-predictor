@@ -84,17 +84,26 @@ serve(async (req) => {
     const team2Recent = matchData.team2Recent?.length > 0 
       ? JSON.stringify(matchData.team2Recent, null, 2) 
       : 'Используй свои знания';
+    const rosterLine = (teamName: string, players: Array<{ name?: string }> | undefined) => {
+      const names = (players ?? []).map((player) => player?.name?.trim()).filter((name): name is string => Boolean(name));
+      return names.length > 0
+        ? `${teamName}: ${names.join(", ")}`
+        : `${teamName}: состав не подтверждён. Не выдумывай ники и не подставляй игроков другой команды.`;
+    };
+    const rosterA = rosterLine(teamA, matchData.team1?.players);
+    const rosterB = rosterLine(teamB, matchData.team2?.players);
 
     const systemPrompt = `Ты — лучший в мире русскоязычный аналитик киберспорта (стиль: launders + YNk + Thorin). 
 Пиши подробно, убедительно, с драматургией и абзацами. Объём — минимум 1500 слов. 
-Никогда не пиши "допустим", "предположим", "Игрок 1/2", "данных нет".
-Всегда используй реальные ники игроков и данные из своих знаний о киберспорте.
+Никогда не пиши "допустим", "предположим", "Игрок 1/2".
+Если для команды передан список ников, в разделе составов используй только его. Не заменяй академию или состав с приставкой x игроками основной команды организации.
 Адаптируй терминологию под ${game}: ${config.terms}.
 Источники: ${config.sources}.`;
 
     const userPrompt = `Сделай детальный анализ матча **${teamA}** vs **${teamB}** (${game}, ${tournament}, ${format}, ${startTime}).
 
 Доступные данные:
+- Составы: ${rosterA}. ${rosterB}
 - H2H: ${h2h}
 - Карты: ${mapStats}
 - Последние матчи ${teamA}: ${team1Recent}
@@ -103,8 +112,8 @@ serve(async (req) => {
 ## ОБЯЗАТЕЛЬНАЯ СТРУКТУРА ОТЧЁТА:
 
 ## 📊 Составы команд и ключевые игроки
-(Каждый игрок: ник, роль (${config.roles.join('/')}), рейтинг/KDA, стиль игры. Используй реальные актуальные составы из своих знаний.)
-В начале блока укажи: "📊 Составы сканированы с ${config.sources} на февраль 2026"
+(Каждый игрок из переданного списка: ник, роль (${config.roles.join('/')}), рейтинг/KDA, стиль игры. Не добавляй ники, которых нет в списке.)
+В начале блока укажи: "📊 Составы взяты из переданных данных OpenDota"
 
 ## ⚔️ История личных встреч
 (Минимум 5-10 встреч с датами и счётом, текстом — НЕ таблицей)

@@ -82,6 +82,7 @@ Deno.test("reports unknown teams, 404, and rate limits without retrying", async 
     calls++;
     const url = new URL(String(input));
     if (url.pathname === "/api/teams") return jsonResponse(teams);
+    if (url.pathname === "/api/proPlayers") return jsonResponse([]);
     return jsonResponse({ error: "slow down" }, 429, { "Retry-After": "30" });
   };
 
@@ -92,7 +93,7 @@ Deno.test("reports unknown teams, 404, and rate limits without retrying", async 
   } catch (error) {
     assert(error instanceof OpenDotaError && error.status === 404, "unknown name is a 404");
   }
-  assert(calls === 1, "a missing name must not request a roster");
+  assert(calls === 2, "a missing name checks the team list and pro players, not a roster");
 
   calls = 0;
   const limited: typeof fetch = async () => {
@@ -117,4 +118,36 @@ Deno.test("reports unknown teams, 404, and rate limits without retrying", async 
   } catch (error) {
     assert(error instanceof OpenDotaError && error.status === 404, "http 404");
   }
+});
+
+Deno.test("resolves Spirit Academy without using the main Team Spirit roster", async () => {
+  const calls: string[] = [];
+  const fetchImpl: typeof fetch = async (input) => {
+    const url = new URL(String(input));
+    calls.push(url.pathname);
+    if (url.pathname === "/api/teams") {
+      return jsonResponse([{ team_id: 7119388, name: "Team Spirit", tag: "TSpirit" }]);
+    }
+    if (url.pathname === "/api/proPlayers") {
+      return jsonResponse([
+        { team_id: 0, team_name: "Team Spirit Academy", team_tag: "TSA" },
+        { team_id: 9948367, team_name: "Team Spirit Academy", team_tag: "TSA" },
+      ]);
+    }
+    if (url.pathname === "/api/teams/9948367") {
+      return jsonResponse({ team_id: 9948367, name: "Team Spirit Academy", tag: "TSA" });
+    }
+    if (url.pathname === "/api/teams/9948367/players") {
+      return jsonResponse([
+        { account_id: 164047347, name: "86", games_played: 223, wins: 82, is_current_team_member: true },
+        { account_id: 1, name: "Former", games_played: 10, wins: 1, is_current_team_member: false },
+      ]);
+    }
+    return jsonResponse({}, 404);
+  };
+
+  const roster = await new OpenDotaRosters({ apiKey: "", fetchImpl }).getRoster("Spirit Academy");
+  assert(roster.team_id === 9948367 && roster.name === "Team Spirit Academy", "academy is not the main team");
+  assert(roster.players.length === 1 && roster.players[0].name === "86", "only current academy players");
+  assert(!calls.includes("/api/teams/7119388/players"), "main Team Spirit roster must not be loaded");
 });
