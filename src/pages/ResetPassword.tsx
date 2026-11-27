@@ -10,13 +10,15 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, Lock, CheckCircle } from "lucide-react";
 import { z } from "zod";
 
-const passwordSchema = z.object({
-  password: z.string().min(6, "Пароль минимум 6 символов"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Пароли не совпадают",
-  path: ["confirmPassword"],
-});
+const passwordSchema = z
+  .object({
+    password: z.string().min(6, "Пароль минимум 6 символов"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Пароли не совпадают",
+    path: ["confirmPassword"],
+  });
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -30,8 +32,10 @@ export default function ResetPassword() {
   useEffect(() => {
     // Check if we have a valid recovery session
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       // Check if this is a recovery session (user came from password reset email)
       if (session) {
         setIsValidSession(true);
@@ -42,7 +46,9 @@ export default function ResetPassword() {
     checkSession();
 
     // Listen for auth state changes (when user clicks the reset link)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
         setIsValidSession(true);
         setChecking(false);
@@ -59,7 +65,7 @@ export default function ResetPassword() {
     if (!validation.success) {
       toast({
         title: "Ошибка",
-        description: validation.error.errors[0].message,
+        description: validation.error.issues[0].message,
         variant: "destructive",
       });
       return;
@@ -122,7 +128,7 @@ export default function ResetPassword() {
               Ссылка для сброса пароля устарела или уже была использована.
               Запросите новую ссылку.
             </p>
-            <Button 
+            <Button
               onClick={() => navigate("/")}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >

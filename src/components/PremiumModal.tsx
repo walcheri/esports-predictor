@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { Crown, Sparkles, Check, Zap, Users, BarChart3, Infinity, Clock } from "lucide-react";
+import {
+  Crown,
+  Sparkles,
+  Check,
+  Zap,
+  Users,
+  BarChart3,
+  Infinity as InfinityIcon,
+  Clock,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -8,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-state";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,11 +27,14 @@ interface PremiumModalProps {
 }
 
 const features = [
-  { icon: Users, text: "Реальные названия и логотипы всех команд (даже в квалификациях)" },
-  { icon: BarChart3, text: "Полные составы игроков с KDA и стилем игры" },
-  { icon: Zap, text: "Коэффициенты и live-статистика" },
-  { icon: Infinity, text: "Неограниченное количество прогнозов" },
-  { icon: Clock, text: "Приоритетная генерация и история матчей" },
+  {
+    icon: BarChart3,
+    text: "Исследуем проверяемую статистику и историю матчей",
+  },
+  {
+    icon: Clock,
+    text: "Уведомление о готовности: сроки, функции и цена пока не утверждены",
+  },
 ];
 
 export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
@@ -34,7 +46,10 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
 
   const handleSubmit = async () => {
     const normalizedEmail = email.trim();
-    if (normalizedEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    if (
+      normalizedEmail.length > 254 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
+    ) {
       toast({
         title: "Ошибка",
         description: "Введите корректный email",
@@ -45,12 +60,9 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase
-        .from("premium_waitlist")
-        .insert({
-          email: normalizedEmail,
-          user_id: user?.id || null,
-        });
+      const { error } = await supabase.rpc("join_waitlist", {
+        p_email: normalizedEmail,
+      });
 
       if (error) {
         if (error.code === "23505") {
@@ -65,7 +77,7 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
       } else {
         toast({
           title: "Спасибо! 🎉",
-          description: "Ты в списке первых 1000 — получишь скидку 50% на первый месяц!",
+          description: "Заявка сохранена. Подписка и оплата не оформляются.",
         });
         setIsSubmitted(true);
       }
@@ -98,7 +110,7 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
         <div className="space-y-6 py-4">
           {/* Intro text */}
           <p className="text-muted-foreground">
-            Мы готовим мощный апгрейд для настоящих фанатов киберспорта:
+            Исследуем будущие возможности; перечисленное пока не доступно:
           </p>
 
           {/* Features list */}
@@ -111,40 +123,17 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                   <feature.icon className="w-4 h-4 text-primary" />
                 </div>
-                <span className="text-sm text-foreground/90 pt-1">{feature.text}</span>
+                <span className="text-sm text-foreground/90 pt-1">
+                  {feature.text}
+                </span>
               </div>
             ))}
           </div>
 
-          {/* Pricing */}
-          <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-transparent border border-primary/20">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              <span className="font-semibold text-foreground">Скоро будет доступен:</span>
-            </div>
-            <div className="flex flex-wrap gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-primary">299 ₽</span>
-                <span className="text-muted-foreground">/месяц</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-primary">1990 ₽</span>
-                <span className="text-muted-foreground">/год</span>
-                <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-medium">
-                  -45%
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Early access offer */}
-          <div className="p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20">
-            <p className="text-sm text-foreground/90">
-              <span className="font-semibold text-yellow-400">🎁 Эксклюзив:</span> Оставь заявку и получи{" "}
-              <span className="font-bold text-primary">скидку 50%</span> на первый месяц!
-            </p>
-          </div>
-
+          <p>
+            Premium пока не продаётся. Заявка не гарантирует запуск, цену,
+            скидку или доступ к букмекерским данным.
+          </p>
           {/* Email form */}
           {!isSubmitted ? (
             <div className="space-y-3">
@@ -175,7 +164,9 @@ export const PremiumModal = ({ open, onOpenChange }: PremiumModalProps) => {
             <div className="p-4 rounded-xl bg-primary/10 border border-primary/30 text-center">
               <Check className="w-8 h-8 text-primary mx-auto mb-2" />
               <p className="font-semibold text-foreground">Вы в списке!</p>
-              <p className="text-sm text-muted-foreground">Мы сообщим о запуске первым</p>
+              <p className="text-sm text-muted-foreground">
+                Мы сообщим о запуске первым
+              </p>
             </div>
           )}
         </div>

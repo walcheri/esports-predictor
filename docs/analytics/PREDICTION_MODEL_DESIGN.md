@@ -29,3 +29,12 @@ are prerequisites. Small synthetic tests validate formulas, not model quality.
 LLM may later paraphrase only validated facts and computed probabilities. For now
 deterministic templates provide complete provenance without model cost or hallucination.
 Groq recovery helper remains available and must retain account-catalog restrictions.
+
+
+## Stage E revision: series-elo-v2-pit-roster
+
+A retrospective final match record is not a prematch observation. `predict` now requires an upcoming snapshot already obtained/available at prediction time. Backtest consumes a separate `eventSnapshots` set and only joins exact event, discipline, participants, BO and scheduled UTC. Missing snapshots cause abstention. Results become usable strictly after both completion and recorded availability; revisions/contradictory identities are quarantined.
+
+Verified five-player dated rosters are required on both sides. Historical appearances of either target team count only when the roster known at that historical start matches the current roster. A fresh roster change therefore needs fresh history rather than inheriting old strength. Unknown players, incomplete/overlapping assignments and missing historical roster observations cause abstention. This is a conservative eligibility gate, not a learned estimate of player ability or patch effects. Coverage will be low without an appropriate PIT dataset and must be reported.
+
+The model remains offline research. Calibration uses only labels available before the held-out test boundary. BO-specific ratings are isolated; no conversion of series probability through an independent-map binomial formula. A 0.5 prediction is only possible as the computed result of equal, sufficiently observed strengths; insufficient history returns null. Production does not accept this result as approved.

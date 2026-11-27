@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-state";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Mail, ArrowLeft, CheckCircle } from "lucide-react";
@@ -23,7 +28,12 @@ interface AuthModalProps {
   onClose: () => void;
 }
 
-type ModalView = "login" | "register" | "forgot-password" | "check-email" | "verification-sent";
+type ModalView =
+  | "login"
+  | "register"
+  | "forgot-password"
+  | "check-email"
+  | "verification-sent";
 
 export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [view, setView] = useState<ModalView>("login");
@@ -45,12 +55,12 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const validation = authSchema.safeParse({ email, password });
     if (!validation.success) {
       toast({
         title: "Ошибка",
-        description: validation.error.errors[0].message,
+        description: validation.error.issues[0].message,
         variant: "destructive",
       });
       return;
@@ -71,7 +81,8 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
           } else if (error.message.includes("Email not confirmed")) {
             toast({
               title: "Email не подтверждён",
-              description: "Проверьте почту и перейдите по ссылке для подтверждения",
+              description:
+                "Проверьте почту и перейдите по ссылке для подтверждения",
               variant: "destructive",
             });
           } else {
@@ -121,7 +132,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     if (!validation.success) {
       toast({
         title: "Ошибка",
-        description: validation.error.errors[0].message,
+        description: validation.error.issues[0].message,
         variant: "destructive",
       });
       return;
@@ -375,7 +386,9 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
             onClick={() => setView(view === "login" ? "register" : "login")}
             disabled={loading}
           >
-            {view === "login" ? "Нет аккаунта? Зарегистрируйтесь" : "Уже есть аккаунт? Войдите"}
+            {view === "login"
+              ? "Нет аккаунта? Зарегистрируйтесь"
+              : "Уже есть аккаунт? Войдите"}
           </button>
         </div>
       </div>
