@@ -24,3 +24,7 @@ LineRadar public-data use, not a substitute for predictor data quality.
 
 Rollback: revert reviewed code/migration in staging first. Do not undo budget usage
 or restore permissive public-profile policies. Keep external calls disabled on failure.
+
+
+## Stage E review candidate — 2026-11-27
+Draft PR #10 completes the dependent offline integration. Code SHA f37c44e9759494776e8c8b109463bd97922292f5 passed all five jobs in Actions 45897770983: Windows/Ubuntu (34 unit + 9 mocked browser tests each), lint/security, PostgreSQL and Edge types. Read docs/reports/2026-11-27-predictor-frontend-quality.md and docs/research/REAL_DATA_VALIDATION_PLAN.md before review. No merge/deploy performed. Next gates: explicit source/license choice, approved isolated staging policies, licensed PIT data, independent held-out evaluation, then reviewed server-side forecast issuance/persistence. Real pilot remains NOT_READY.

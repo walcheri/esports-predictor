@@ -1,6 +1,6 @@
 # Этап E — frontend, качество и повторный аудит модели
 
-Дата: 2026-11-27. Репозиторий walcheri/esports-predictor. База: `4854848b32d857e0f76b0e5c571cefea19b6fdc4` (draft PR #9). Ветка `codex/predictor-frontend`, зависимый этап E. Итоговый SHA и CI будут внесены после публикации и завершения проверок; этот коммит — кандидат на проверку, не утверждённый релиз.
+Дата: 2026-11-27. Репозиторий walcheri/esports-predictor. База: `4854848b32d857e0f76b0e5c571cefea19b6fdc4` (draft PR #9). Ветка `codex/predictor-frontend`, зависимый этап E. PR: [#10](https://github.com/walcheri/esports-predictor/pull/10), draft, base PR #9. Итоговый проверенный SHA кода: `f37c44e9759494776e8c8b109463bd97922292f5` (основная реализация `2d8dd98a86bf10c6b2e4f80afe78afe523853aa9`, затем точечная защита калибровки). Этот отчёт сохранён последующим документационным коммитом; точный SHA отчётного коммита доступен в истории файла. Main остаётся `ede72f3fe921b80cd4c32b4e8d7746d496bde5c1`.
 
 ## Исправления
 
@@ -17,19 +17,40 @@
 
 PR #1 повторно прочитан на `0c10e8126a2c04e984ae1792ebf3f2da713e237c`: добавлены поиск Spirit Academy и принудительная вставка текущего OpenDota roster в текст. Это полезный эксперимент, но текущий roster не является PIT roster; fallback одной стороны с общим rostersSource и wins??0 остаются риском. Его frontend-прямые запросы не проходят новый серверный бюджет. Пересечения: Match.tsx, fetch-match-details/index.ts, generate-prediction/index.ts. Автоматический merge запрещён; адаптер следует переносить через общий серверный gate, per-side provenance и проверенное ID mapping после выбора источника. PR #1 не изменён. PR #5 `305259c4...` сохранён для отдельной будущей интеграции LineRadar.
 
-## Проверки (кандидат, до финального CI)
+## Фактические проверки и exit codes
 
-- npm ci: exit 0 после обновления lockfile; найдено 0 advisories.
-- npm test: 31 тест прошёл, exit 0; дополнительные сквозные/CLI тесты добавлены и входят в финальный прогон.
-- npm run typecheck: ранее exit 0 после исправления Object.hasOwn для ES2020; повторный финальный прогон выполняется.
-- npm run lint: exit 0, без ошибок/предупреждений; правила не отключались.
-- npm run build: exit 0; после lazy loading повторная сборка проверяется.
-- npm audit --audit-level=low: exit 0, 0 vulnerabilities.
-- npm run security:secrets: exit 0; приватные ключи, Groq keys, service-role JWT не обнаружены. Непрозрачные provider keys требуют ручного review.
-- npx deno check (4 entrypoints): exit 0, без запуска функций.
-- Playwright: 9 сценариев прошли по выводу, финальный exit ещё фиксируется. Все не-локальные запросы блокируются/подменяются; реальные email, API и Supabase не использовались. Мобильный и desktop screenshot просмотрены.
-- Ранние локальные отказы: пропущенный импорт useAuth после разделения контекста; холодная загрузка dev-сервера превышала общий 30s лимит теста; несовместимость Object.hasOwn с ES2020. Исправлены импорт, SPA-навигация/60s test budget и совместимый вызов. Продуктовые assertions не отключены.
-- SQL/RLS: в PR #6 disposable PostgreSQL CI прошёл; дополнительная миграция E требует нового CI. Это не проверка фактических policies в staging/production.
+Полностью успешный [CI 45897770983](https://github.com/walcheri/esports-predictor/actions/runs/45897770983) на SHA `f37c44e9759494776e8c8b109463bd97922292f5`. Предыдущий [CI 45897445823](https://github.com/walcheri/esports-predictor/actions/runs/45897445823) на основном коммите также успешен. Проверены не только статусы: прочитаны логи обоих application jobs и database job.
+
+| Проверка | Результат |
+|---|---|
+| npm ci | Exit 0 на Windows/Ubuntu, воспроизводимый lockfile |
+| npm test | Exit 0; **34/34** на Windows и Ubuntu, также локально |
+| npm run typecheck | Exit 0; frontend, strict core и e2e config/tests |
+| npm run build | Exit 0; lazy routes работают. Главный chunk ~760 KB, build warning о размере остаётся и не скрыт |
+| npm run lint | Exit 0; **0 ошибок, 0 предупреждений**, без отключения правил |
+| npm audit --audit-level=low | Exit 0; **0 vulnerabilities** на дату проверки |
+| npm run security:secrets | Exit 0; tracked/review файлы без обнаруженных private keys/Groq keys/service-role JWT. Это не универсальный детектор непрозрачных секретов |
+| Deno check четырёх Edge entrypoints | Exit 0 локально и в отдельном CI job; функции не запускались |
+| npm run test:e2e | Exit 0; **9/9** на Windows (9.7s CI), Ubuntu (7.8s CI), локально (2.2m с холодным dev server) |
+| PostgreSQL 16 disposable job | Exit 0; повторное применение миграций, owner RLS, guest waitlist RPC/validation/duplicate privacy, запрет forged forecasts/profile counters, owner-only legacy history, 40 конкурентных попыток ограничены 5 резервированиями/50 синтетическими единицами |
+| Drizzle CLI --version | Exit 0; 0.31.11 / orm 0.45.4. Живые Drizzle/Supabase migration не запускались |
+| git diff --check | Exit 0 |
+
+Браузерные сценарии: guest catalogue, authenticated partial catalogue + mobile details + INSUFFICIENT_DATA, quota failure, late event response after navigation, logout with delayed profile, honest Premium, mocked registration confirmation, unverified archive, guest waitlist RPC. Приложение сохраняет запросы только к локальному dev server; остальные сети заблокированы/подменены. Реальные email, API и Supabase не использовались. Мобильный и desktop screenshot просмотрены.
+
+Сквозной mock тест проходит reservation → provider response → normalization → frontend DTO parser. Отдельный CLI-тест запускает локальный PIT dataset с явным `synthetic=true`, prematch snapshots, результатами и датированными rosters; проверяет SHA256 и `productionApproved=false`. Это доказательство совместимости вычислительных компонентов, не настоящая история и не измерение реальной точности.
+
+Повторный аудит после основного коммита выявил отсутствие проверки obtainedAt у калибровочных labels (availableAt уже проверялся). Исправление `f37c44e` исключает результат, полученный после начала holdout, даже если provider publication time раньше. Новый тест проходит; полный suite и все пять CI jobs повторены успешно.
+
+Ранние локальные отказы сохранены как история диагностики: пропущенный импорт useAuth после разделения контекста; холодная загрузка dev-сервера превышала общий 30s лимит теста; несовместимость Object.hasOwn с ES2020. Исправлены импорт, SPA-навигация/60s test budget и совместимый вызов. Assertions не отключались. SQL tests на CI не являются проверкой фактических policies staging/production.
+
+### Классификация dependency advisories
+
+- Vite/Rollup/esbuild: build/dev-server attack surface, не код backend в production; обновлены Vite 6.4.6 и исправленные зависимости, локальные тесты слушают только loopback.
+- Zod: реальный runtime validation path; major update до 4.6.7+ с заменой `.errors` на `.issues`, проверены Auth и DTO.
+- React Router/Remix: routing path присутствует; SSR hydration в этом SPA не используется, маршруты матчей валидируются. Обновление до 7.18+ устраняет advisories без предположения, что отсутствие SSR решает остальные проблемы.
+- lodash/ws/nanoid/postcss и связанные пакеты: смесь runtime/transitive/build путей; конкретная эксплуатация не заявлялась, исправленные версии зафиксированы lockfile.
+- ajv/flatted/glob/minimatch/yaml и esbuild-kit/typography: преимущественно tooling/config/build; обновлены и/или применены узкие overrides. Существовавшие deprecated tooling packages пока сохранены ради совместимости, без известных audit findings.
 
 ## Реальные данные и готовность
 
@@ -49,6 +70,8 @@ Draft PR не слит и не развёрнут: откат на этом эт
 - `README.md`
 - `docs/analytics/BACKTEST_RESULTS.md`
 - `docs/analytics/PREDICTION_MODEL_DESIGN.md`
+- `docs/audits/PREDICTOR_FULL_AUDIT.md`
+- `docs/reports/2026-11-27-predictor-frontend-quality.md`
 - `docs/research/REAL_DATA_VALIDATION_PLAN.md`
 - `e2e/product.spec.ts`
 - `package-lock.json`
