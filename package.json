@@ -12,7 +12,9 @@
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.core.json && tsc -p tsconfig.e2e.json",
     "test:e2e": "playwright test",
-    "security:secrets": "node scripts/check-secrets.mjs"
+    "security:secrets": "node scripts/check-secrets.mjs",
+    "dataset": "tsx scripts/dataset.ts",
+    "probe": "tsx scripts/probe.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

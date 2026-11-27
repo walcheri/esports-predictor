@@ -20,6 +20,7 @@ if (input.licenseConfirmed !== true || !Array.isArray(input.observations))
   throw new Error("LICENSE_AND_OBSERVATIONS_REQUIRED");
 if (typeof input.synthetic !== "boolean")
   throw new Error("EXPLICIT_SYNTHETIC_CLASSIFICATION_REQUIRED");
+if(input.synthetic!==true)throw new Error("REAL_DATA_REQUIRES_VALIDATED_DATASET_PIPELINE");
 const classify = (m: ReturnType<typeof normalizePanda>) =>
   input.synthetic
     ? {
