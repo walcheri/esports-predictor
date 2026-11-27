@@ -106,3 +106,7 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Продолжение 27.11.2026: подготовка реального теста
+Совокупная ветка A–E: codex/predictor-real-data-readiness. Статус READY_FOR_OFFLINE_REVIEW; реальные API, staging и accuracy не подтверждены. Добавлены строгий offline dataset import/quarantine/manifest/backtest и отдельный dry-run probe с durable quota ledger. Инструкции и ограничения: [передача напарнику](docs/handoff/PREDICTOR_PARTNER_HANDOFF.md), [staging](docs/handoff/STAGING_READINESS.md), [отчёт](docs/reports/2026-11-27-real-data-test-readiness.md).
+Быстрый безопасный тест: `npm run probe -- --out .local/demo-probe-01` (mock, без ключа, 0 внешних запросов). Live-проверки запрещены до отдельного owner approval и проверки лицензии/тарифа. Groq/external flags остаются false. Стоимость офлайн-данных: 0; стоимость будущего источника не подтверждена.

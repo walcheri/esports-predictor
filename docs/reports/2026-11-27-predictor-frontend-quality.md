@@ -124,3 +124,7 @@ Draft PR не слит и не развёрнут: откат на этом эт
 - `tests/statistics.test.ts`
 - `tsconfig.core.json`
 - `tsconfig.e2e.json`
+
+## Проверка финального HEAD и следующий этап (27.11.2026)
+Финальный HEAD PR #10 040e4fbd5a149dc49628e882002951f470dae9fa подтверждён пятью успешными jobs: https://github.com/walcheri/esports-predictor/actions/runs/45951088736 (Win/Ubuntu app, lint/audit/secrets, Deno, PostgreSQL). Он включает исходный code SHA f37c44e9759494776e8c8b109463bd97922292f5; прежние pending-заметки являются историей, не текущим статусом.
+Offline-import/probe preparation/handoff вынесены в отдельную зависимую ветку codex/predictor-real-data-readiness, база codex/predictor-frontend. Main и PR #1/#5 не изменены. Настоящий staging и точность по-прежнему не подтверждены.
