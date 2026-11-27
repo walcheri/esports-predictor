@@ -90,3 +90,5 @@ READY_FOR_CONTROLLED_REAL_DATA_TEST:
 
 READY_FOR_REAL_PILOT (отдельный этап): prospective PIT dataset/исторические rosters; достаточный независимый temporal backtest/coverage/calibration; серверная versioned модель и immutable forecast; review, operational monitoring, privacy/retention и rollback.
 Живой прогноз сейчас сознательно INSUFFICIENT_DATA. History-model approval, historical PIT collection, real backtest и LineRadar не готовы. На данные в офлайн-этапе потрачено0; будущие расходы не подтверждены.
+
+Дополнение к порогам: 30 событий/30 calibration/30 held-out — только технические smoke gates CLI. Они не заменяют исследовательский план docs/research/REAL_DATA_VALIDATION_PLAN.md: предложено 1000 train / 300 calibration / 500 independent test на дисциплину, ≥3 турниров для source sample, отдельные BO и независимая сверка результатов. Эти объёмы и критерии качества должны быть согласованы до просмотра test metrics. Scope всегда bounded-sample; manifest.partial описывает незавершённый/ошибочный план загрузки, а false НЕ означает полный каталог провайдера.
